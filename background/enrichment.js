@@ -33,6 +33,89 @@ export const MAX_RETRIES = 3;
 export const ENRICHMENT_CONFIG_KEY = 'enrichmentConfig';
 
 /**
+ * Value of `scanProgress.kind` for the album-metadata enrichment pump.
+ *
+ * Enrichment and the history scanner share the single `scanProgress` storage key
+ * so the Details page has one place to watch, but they are different activities.
+ * The kind tag lets a reader tell them apart instead of guessing from `isScanning`.
+ */
+export const ENRICHMENT_PROGRESS_KIND = 'enrichment';
+
+/**
+ * A scan that has not written progress for this long is treated as dead.
+ *
+ * `scanProgress.isScanning` is only ever cleared by the content script that set
+ * it, so closing the history tab mid-scan left the Details page stuck on
+ * "Sync in Progress" with the Start button disabled and no way out.
+ */
+export const STALE_SCAN_AFTER_MS = 3 * 60 * 1000;
+
+/**
+ * Builds the `scanProgress` payload published by the enrichment pump.
+ *
+ * Built from scratch rather than by spreading an earlier `scanProgress`. That
+ * spread was the bug: a job is usually queued while a history scan is still
+ * finishing, so every pump tick republished `isScanning: true` plus that scan's
+ * `latestTrack`, and the Details page reported "Sync in Progress" with the last
+ * imported track long after the import finished.
+ *
+ * @param {object} job Persisted enrichment job.
+ * @param {string} statusText
+ * @param {boolean} [done] Marks the terminal write.
+ * @returns {object} A `scanProgress` payload.
+ */
+export function buildEnrichmentProgress(job, statusText, done = false) {
+  const source = job && typeof job === 'object' ? job : {};
+
+  return {
+    kind: ENRICHMENT_PROGRESS_KIND,
+    isScanning: false,
+    latestTrack: null,
+    count: 0,
+    unique: 0,
+    updatedAt: Date.now(),
+    enrichmentTotal: Array.isArray(source.candidates) ? source.candidates.length : 0,
+    enrichmentProcessed: Number(source.index) || 0,
+    enrichmentUpdated: Number(source.updated) || 0,
+    enrichmentFailed: Number(source.failed) || 0,
+    enrichmentDone: Boolean(done),
+    statusText: statusText || ''
+  };
+}
+
+/**
+ * True when the enrichment pump may overwrite the current `scanProgress`.
+ *
+ * A live history scan owns the panel while it runs, so publishing enrichment
+ * text over it would make the scanner look idle mid-scan.
+ *
+ * @param {object} currentScanProgress Current value of the `scanProgress` key.
+ * @returns {boolean}
+ */
+export function shouldPublishEnrichmentProgress(currentScanProgress) {
+  if (!currentScanProgress || typeof currentScanProgress !== 'object') return true;
+  if (currentScanProgress.kind === ENRICHMENT_PROGRESS_KIND) return true;
+  return !currentScanProgress.isScanning;
+}
+
+/**
+ * True when a scan claims to be running but has not reported progress recently
+ * enough to still be alive.
+ *
+ * @param {object} progress A `scanProgress` payload.
+ * @param {number} [now] Injectable clock for tests.
+ * @returns {boolean}
+ */
+export function isStaleScanProgress(progress, now = Date.now()) {
+  if (!progress || typeof progress !== 'object') return false;
+  if (progress.kind === ENRICHMENT_PROGRESS_KIND) return false;
+  if (!progress.isScanning) return false;
+  const updatedAt = Number(progress.updatedAt);
+  if (!Number.isFinite(updatedAt) || updatedAt <= 0) return false;
+  return (now - updatedAt) > STALE_SCAN_AFTER_MS;
+}
+
+/**
  * Normalizes an album browse ID into the form expected by the browse endpoint.
  * Playlist-style IDs need the `VL` prefix; `OLAK5uy...` album IDs are converted.
  *

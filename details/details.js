@@ -5,6 +5,7 @@
  */
 
 import { createMatchIndex, matchTrackPlayCountWithIndex } from '../background/scoring.js';
+import { ENRICHMENT_PROGRESS_KIND, isStaleScanProgress } from '../background/enrichment.js';
 import { makeAlbumKey } from '../background/storage.js';
 import { thumbnailCache } from '../background/thumbnails.js';
 import '../shared/messaging.js';
@@ -254,7 +255,9 @@ function computeAlbumStatusText(album, uniqueTracks, completePlays) {
   }
 }
 
-function updateCardInPlace(card, album, idx) {
+function updateCardInPlace(card, album) {
+  // Only ever called for a card already showing this exact albumKey, so the
+  // existing card can be reused and just refreshed in place.
   card._albumData = album;
   const uniqueTracks = album.uniqueTracksCount || (album.tracksListened ? Object.keys(album.tracksListened).length : 1);
   const completePlays = album.completePlays || 0;
@@ -309,12 +312,10 @@ function updateCardInPlace(card, album, idx) {
       }
     }
 
-    // If card doesn't have an image yet and now a cached image is available
-    const albumKey = card.dataset.albumKey;
-    const memUrl = thumbnailCache.getMemoryObjectUrl(albumKey);
-    if (memUrl && !container.querySelector('.album-cover-img')) {
-      applyCoverToCard(container, memUrl, album.album);
-    }
+    // Repaint from whatever is already known (memory cache, or the album's
+    // stored coverUrl). Cheap enough to run on every in-place update, and it
+    // means a rebuilt card never sits empty.
+    paintKnownCover(album, card.dataset.albumKey, container);
   }
 
   // If expanded section is active, update tracks in real time
@@ -445,7 +446,6 @@ function buildAlbumCard(album, idx) {
   card.className = 'album-breakdown-card';
   const albumKey = makeAlbumKey(album.album, album.artist);
   card.dataset.albumKey = albumKey;
-  card.dataset.index = idx;
   card._albumData = album;
 
   const uniqueTracks = album.uniqueTracksCount || (album.tracksListened ? Object.keys(album.tracksListened).length : 1);
@@ -458,7 +458,6 @@ function buildAlbumCard(album, idx) {
   const artistSubtitle = hasDistinctArtist ? `${cleanArtistName} • ` : '';
 
   const cardId = `album-card-${idx}`;
-  const artId = `album-art-${idx}`;
 
   const badgeGlyph = isCompleted ? '★' : '💿';
 
@@ -468,7 +467,6 @@ function buildAlbumCard(album, idx) {
   // terminate the `title` attribute early.
   const artwork = document.createElement('div');
   artwork.className = 'album-artwork-container';
-  artwork.id = artId;
 
   const badge = document.createElement('div');
   badge.className = isCompleted ? 'album-icon-badge completed' : 'album-icon-badge';
@@ -510,7 +508,6 @@ function buildAlbumCard(album, idx) {
   const toggleBtn = document.createElement('button');
   toggleBtn.type = 'button';
   toggleBtn.className = 'btn-toggle-album-tracks';
-  toggleBtn.dataset.index = String(idx);
   toggleBtn.textContent = 'View Tracks';
 
   const cardRight = document.createElement('div');
@@ -550,10 +547,14 @@ function buildAlbumCard(album, idx) {
   wireAlbumCardEvents(card, album, cardId);
 
   // Covers are always resolved through fetchAlbumCover, which prefers the
-  // IndexedDB object URL and only falls back to the remote https:// URL. The
-  // previous code injected an <img> straight from the remote URL whenever
-  // `initialCoverUrl` was set, which bypassed the whole 128px WebP cache.
-  observeAlbumCard(card, idx);
+  // IndexedDB object URL and only falls back to the remote https:// URL.
+  //
+  // Painted synchronously first when the URL is already known. The observer below
+  // only fires on the next frame, and only for cards in view, so without this a
+  // list rebuild showed every cover as a blank placeholder first.
+  paintKnownCover(album, albumKey, artwork);
+
+  observeAlbumCard(card);
 
   return card;
 }
@@ -601,12 +602,19 @@ function renderAlbumsBreakdown() {
 
   if (isMatch) {
     albums.forEach((album, idx) => {
-      updateCardInPlace(existingCards[idx], album, idx);
+      updateCardInPlace(existingCards[idx], album);
     });
     return;
   }
 
   // Full re-render when album list or order changes
+  // Detached cards stay registered with the IntersectionObserver until they
+  // intersect, which never happens once they are off-screen and out of the DOM.
+  // On a Top 3 / Show All toggle that leaks every card from the previous list.
+  if (albumCoverObserver) {
+    existingCards.forEach((card) => albumCoverObserver.unobserve(card));
+  }
+
   elements.albumsBreakdownList.textContent = '';
   albums.forEach((album, idx) => {
     const card = buildAlbumCard(album, idx);
@@ -623,10 +631,9 @@ function getAlbumCoverObserver() {
         if (entry.isIntersecting) {
           const card = entry.target;
           observer.unobserve(card);
-          const idx = parseInt(card.dataset.index, 10);
           const album = card._albumData;
           if (album) {
-            fetchAlbumCover(album, idx, card);
+            fetchAlbumCover(album, card);
           }
         }
       });
@@ -638,13 +645,12 @@ function getAlbumCoverObserver() {
   return albumCoverObserver;
 }
 
-function observeAlbumCard(card, idx) {
-  card.dataset.index = idx;
+function observeAlbumCard(card) {
   const observer = getAlbumCoverObserver();
   if (observer) {
     observer.observe(card);
   } else {
-    fetchAlbumCover(card._albumData, idx, card);
+    fetchAlbumCover(card._albumData, card);
   }
 }
 
@@ -679,24 +685,95 @@ function applyCoverToCard(container, url, albumName) {
   if (badge) badge.style.display = 'none';
 }
 
+/**
+ * Keys whose cover has already been resolved from the network this session.
+ *
+ * This guards *network* work only. It used to short-circuit the whole function,
+ * so any card rebuilt after a Top 3 / Show All toggle or a stats refresh came
+ * back with no image at all: the key was still marked, the fetch bailed out, and
+ * nothing ever painted the container again.
+ */
 const requestedCoverKeys = new Set();
-async function fetchAlbumCover(album, idx, cardEl) {
-  if (!album || !album.album) return;
-  const key = makeAlbumKey(album.album, album.artist);
 
-  if (requestedCoverKeys.has(key)) return;
-  requestedCoverKeys.add(key);
+/** Keys already warmed into the IndexedDB cache from a known remote URL. */
+const warmedCoverKeys = new Set();
 
-  // Check persistent negative cache
-  if (thumbnailCache.isThumbnailFailed(key)) {
-    return;
+/**
+ * Populates the 128px IndexedDB cache for an album whose remote cover URL is
+ * already known, without blocking the paint.
+ *
+ * Guarded per key because cacheRemoteThumbnail mints a fresh object URL on every
+ * call and overwrites the memory entry: unguarded, a list rebuild would re-download
+ * every cover and leak the object URLs it replaced.
+ *
+ * @param {string} key
+ * @param {string} remoteUrl
+ */
+function warmThumbnailCache(key, remoteUrl) {
+  if (warmedCoverKeys.has(key)) return;
+  warmedCoverKeys.add(key);
+  thumbnailCache.cacheRemoteThumbnail(key, remoteUrl)
+    .then((objectUrl) => {
+      if (objectUrl) refreshThumbnailCacheStats();
+    })
+    .catch(() => {});
+}
+
+/**
+ * Paints a cover that is already known, without any I/O.
+ *
+ * @param {object} album
+ * @param {string} key
+ * @param {Element|null} container
+ * @returns {boolean} Whether the container now shows a cover.
+ */
+function paintKnownCover(album, key, container) {
+  if (!container || !album || !album.album) return false;
+
+  // Already painted on this container (e.g. by a concurrent duplicate call).
+  // An <img> that errored is hidden by its own onerror handler, so it counts as
+  // unpainted and is retried once the negative cache allows it.
+  const paintedImg = container.querySelector('.album-cover-img');
+  if (paintedImg && paintedImg.style.display !== 'none') return true;
+
+  // In-memory object URL: free and synchronous. This is the common case for a
+  // card rebuilt from a list that was already painted once (Top 3 / Show All).
+  const memUrl = thumbnailCache.getMemoryObjectUrl(key);
+  if (memUrl) {
+    applyCoverToCard(container, memUrl, album.album);
+    return true;
   }
 
-  const container = cardEl
-    ? cardEl.querySelector('.album-artwork-container')
-    : document.getElementById(`album-art-${idx}`);
+  // The album record already carries a resolved remote URL (the background
+  // writes it back to storage). Paint it right away so a rebuilt card is never
+  // blank, and warm the 128px IndexedDB copy in the background so the next
+  // rebuild can use the cache instead of the full-size original.
+  if (album.coverUrl && album.coverUrl.startsWith('http')) {
+    applyCoverToCard(container, album.coverUrl, album.album);
+    warmThumbnailCache(key, album.coverUrl);
+    return true;
+  }
 
-  // Step 1: Check IndexedDB
+  return false;
+}
+
+/**
+ * Full cover resolution: cached copy first, network only if nothing is known.
+ *
+ * @param {object} album
+ * @param {Element} cardEl The card whose artwork container should be painted.
+ * @returns {Promise<void>}
+ */
+async function fetchAlbumCover(album, cardEl) {
+  if (!album || !album.album || !cardEl) return;
+  const key = makeAlbumKey(album.album, album.artist);
+
+  const container = cardEl.querySelector('.album-artwork-container');
+  if (!container) return;
+
+  if (paintKnownCover(album, key, container)) return;
+
+  // Step 2: persistent IndexedDB copy, so covers survive a page reload.
   try {
     const cachedUrl = await thumbnailCache.getThumbnailObjectUrl(key);
     if (cachedUrl) {
@@ -705,27 +782,17 @@ async function fetchAlbumCover(album, idx, cardEl) {
     }
   } catch (_) {}
 
-  if (container) {
-    container.classList.add('loading');
-  }
-
-  // Step 2: If album already has a remote coverUrl, downscale and cache into IndexedDB
-  if (album.coverUrl && album.coverUrl.startsWith('http')) {
-    let cachedUrl = null;
-    try {
-      // cacheRemoteThumbnail resolves to the object URL string itself (or null).
-      // The previous check read `cached.objectUrl`, which is always undefined, so
-      // the 128px WebP was cached and then thrown away in favour of a second
-      // download of the full-size original.
-      cachedUrl = await thumbnailCache.cacheRemoteThumbnail(key, album.coverUrl);
-    } catch (_) {}
-
-    applyCoverToCard(container, cachedUrl || album.coverUrl, album.album);
-    if (cachedUrl) refreshThumbnailCacheStats();
+  // Nothing left locally and the network already answered for this key: stop.
+  if (requestedCoverKeys.has(key) || thumbnailCache.isThumbnailFailed(key)) {
+    container.classList.remove('loading');
     return;
   }
+  requestedCoverKeys.add(key);
+  container.classList.add('loading');
 
-  // Step 3: Request from background script
+  // No remote coverUrl to fall back on here: paintKnownCover already handled
+  // that case above, so reaching this point means nothing is known locally.
+  // Request the cover from the background script.
   let resolvedUrl = null;
   try {
     const resp = await sendRuntimeMessage({
@@ -739,23 +806,22 @@ async function fetchAlbumCover(album, idx, cardEl) {
     resolvedUrl = resp && resp.status === 'ok' && resp.data && resp.data.coverUrl ? resp.data.coverUrl : null;
   } catch (_) {}
 
-  if (resolvedUrl) {
-    album.coverUrl = resolvedUrl;
-    let displayUrl = resolvedUrl;
-    try {
-      const cachedUrl = await thumbnailCache.cacheRemoteThumbnail(key, resolvedUrl);
-      if (cachedUrl) {
-        displayUrl = cachedUrl;
-        refreshThumbnailCacheStats();
-      }
-    } catch (_) {}
-    applyCoverToCard(container, displayUrl, album.album);
-  } else {
-    // Negative caching: permanently mark as failed so it NEVER loops
-    if (container) container.classList.remove('loading');
+  if (!resolvedUrl) {
+    // Negative caching so a permanently unavailable cover is not re-requested on
+    // every rebuild. The 7-day TTL in thumbnailCache expires it, so a transient
+    // failure is not permanent for the session.
+    container.classList.remove('loading');
     thumbnailCache.markThumbnailFailed(key).catch(() => {});
-    // Note: Do NOT delete key from requestedCoverKeys!
+    return;
   }
+
+  album.coverUrl = resolvedUrl;
+  applyCoverToCard(container, resolvedUrl, album.album);
+
+  // Downscaling happens after the paint, so the cover appears immediately at
+  // full resolution and the next rebuild uses the 128px cache. Doing it first
+  // meant waiting on a network round trip to show anything at all.
+  warmThumbnailCache(key, resolvedUrl);
 }
 
 function handleAlbumsStorageChange(oldAlbums, newAlbums) {
@@ -789,7 +855,9 @@ function handleAlbumsStorageChange(oldAlbums, newAlbums) {
     return;
   }
 
-  // If only coverUrl changed, update card in-place without rebuilding DOM
+  // Only a coverUrl changed: nothing about the ordering or the counts, so repaint
+  // that one card instead of rebuilding the whole list. fetchAlbumCover resolves
+  // the stored URL immediately and only reaches the network if it has none.
   if (elements.albumsBreakdownList) {
     for (const k of newKeys) {
       const prev = oldAlbums && oldAlbums[k];
@@ -797,10 +865,8 @@ function handleAlbumsStorageChange(oldAlbums, newAlbums) {
       if (curr.coverUrl && (!prev || prev.coverUrl !== curr.coverUrl)) {
         const card = elements.albumsBreakdownList.querySelector(`[data-album-key="${k}"]`);
         if (card) {
-          const container = card.querySelector('.album-artwork-container');
-          if (container && !container.querySelector('.album-cover-img')) {
-            fetchAlbumCover(curr, card.dataset.index, card);
-          }
+          card._albumData = curr;
+          fetchAlbumCover(curr, card);
         }
       }
     }
@@ -905,6 +971,7 @@ async function executeDataWipe() {
 
     // 4. Update sync status UI
     renderHistorySyncStatus(null);
+    clearScanProgressCache();
     renderScanProgress(null);
     showSuccessAlert();
 
@@ -921,6 +988,7 @@ async function executeDataWipe() {
     refreshThumbnailCacheStats();
     setWipeStep(0);
     renderHistorySyncStatus(null);
+    clearScanProgressCache();
     renderScanProgress(null);
     showSuccessAlert();
     loadStats();
@@ -961,7 +1029,44 @@ function renderScanProgress(scanProgress) {
 
   const cleanStatus = sanitizeStatusText(scanProgress.statusText);
 
-  if (scanProgress.isScanning) {
+  // Album-metadata enrichment shares this panel but is not a sync. It must never
+  // be presented as one, or "Fetching metadata..." reads as a scan that is still
+  // running (and re-enables the panel with a nonsense play count).
+  if (scanProgress.kind === ENRICHMENT_PROGRESS_KIND) {
+    const done = Boolean(scanProgress.enrichmentDone);
+    elements.scannerLivePanel.style.display = 'flex';
+    if (elements.launchHistoryScannerBtn) {
+      elements.launchHistoryScannerBtn.disabled = false;
+      elements.launchHistoryScannerBtn.textContent = 'Start Sync';
+    }
+    if (elements.scannerConfigSpinner) elements.scannerConfigSpinner.classList.toggle('done', done);
+    if (elements.scannerLiveBadge) {
+      elements.scannerLiveBadge.textContent = done ? 'Metadata Ready' : 'Fetching Metadata';
+      elements.scannerLiveBadge.classList.toggle('badge-done', done);
+    }
+    if (elements.scannerLiveCounts) {
+      const processed = scanProgress.enrichmentProcessed || 0;
+      const total = scanProgress.enrichmentTotal || 0;
+      elements.scannerLiveCounts.textContent = total > 0
+        ? `${processed}/${total} albums`
+        : 'Resolving album metadata';
+    }
+    if (elements.scannerImportingTrack) {
+      elements.scannerImportingTrack.textContent = cleanStatus;
+    }
+    return;
+  }
+
+  // A scan with no recent heartbeat belongs to a tab that is gone. Treating it as
+  // live is what pinned this panel on "Syncing in progress" and left the Start
+  // button permanently disabled, since the content script that would have
+  // cleared the flag died with its tab.
+  const interrupted = isStaleScanProgress(scanProgress);
+  const panelStatus = interrupted
+    ? `${cleanStatus || 'Scan interrupted'} (reopen the history page to resume)`
+    : cleanStatus;
+
+  if (scanProgress.isScanning && !interrupted) {
     elements.scannerLivePanel.style.display = 'flex';
     if (elements.launchHistoryScannerBtn) {
       elements.launchHistoryScannerBtn.disabled = true;
@@ -982,39 +1087,75 @@ function renderScanProgress(scanProgress) {
         const t = scanProgress.latestTrack;
         elements.scannerImportingTrack.textContent = `🎵 "${t.title}" • ${t.artist || 'Unknown'}${t.album ? ` (${t.album})` : ''}`;
       } else {
-        // Enrichment reuses scanProgress.statusText, so surface it here too
-        // instead of showing a stale "Finding songs in history...".
-        elements.scannerImportingTrack.textContent = cleanStatus || 'Finding songs in history...';
+        elements.scannerImportingTrack.textContent = panelStatus || 'Finding songs in history...';
       }
     }
-  } else if (scanProgress.statusText) {
+  } else if (panelStatus) {
     elements.scannerLivePanel.style.display = 'flex';
     if (elements.launchHistoryScannerBtn) {
       elements.launchHistoryScannerBtn.disabled = false;
       elements.launchHistoryScannerBtn.textContent = 'Start Sync';
     }
-    if (elements.scannerConfigSpinner) elements.scannerConfigSpinner.classList.add('done');
+    if (elements.scannerConfigSpinner) {
+      // An interrupted scan has no verdict to show, so the spinner keeps turning.
+      elements.scannerConfigSpinner.classList.toggle('done', !interrupted);
+    }
     if (elements.scannerLiveBadge) {
-      elements.scannerLiveBadge.textContent = scanProgress.count === 0 ? 'Up to Date' : 'Completed';
-      elements.scannerLiveBadge.classList.add('badge-done');
+      elements.scannerLiveBadge.textContent = interrupted
+        ? 'Scan Interrupted'
+        : (scanProgress.count === 0 ? 'Up to Date' : 'Completed');
+      elements.scannerLiveBadge.classList.toggle('badge-done', !interrupted);
     }
     if (elements.scannerLiveCounts) {
       const plays = scanProgress.count || 0;
       elements.scannerLiveCounts.textContent = plays === 1 ? '1 play synced' : `${plays} plays synced`;
     }
     if (elements.scannerImportingTrack) {
-      elements.scannerImportingTrack.textContent = cleanStatus;
+      elements.scannerImportingTrack.textContent = panelStatus;
     }
   } else {
     elements.scannerLivePanel.style.display = 'none';
   }
 }
 
+/**
+ * Last `scanProgress` payload seen, replayed on a timer so staleness is
+ * re-evaluated without waiting for a storage event.
+ */
+let lastScanProgress = null;
+
+/** How often the scan panel is re-rendered from the cached payload. */
+const SCAN_PANEL_TICK_MS = 15000;
+
+/**
+ * Drops the cached payload so the panel watcher stops replaying it. Used when the
+ * data behind the panel is wiped, otherwise the watcher would re-render the
+ * deleted scan state on its next tick.
+ */
+function clearScanProgressCache() {
+  lastScanProgress = null;
+}
+
+function startScanPanelWatch() {
+  setInterval(() => {
+    // A dead scan produces no further writes, so there is no storage event to
+    // react to. Re-rendering the cached payload is what lets isStaleScanProgress
+    // notice the heartbeat stopped and unblock the Start button.
+    if (lastScanProgress) {
+      renderScanProgress(lastScanProgress);
+    }
+  }, SCAN_PANEL_TICK_MS);
+}
+
 async function checkScanProgress() {
   try {
     const data = await extBrowser.storage.local.get(['scanProgress']);
-    if (data && data.scanProgress) {
-      renderScanProgress(data.scanProgress);
+    // Render even a null value: an import sets scanProgress to null to drop the
+    // previous run's state, and skipping that here left the panel showing the
+    // pre-import "Syncing" text.
+    if (data && 'scanProgress' in data) {
+      lastScanProgress = data.scanProgress;
+      renderScanProgress(lastScanProgress);
     }
   } catch (err) {
     console.error('[Details] Error checking scanProgress:', err);
@@ -1072,7 +1213,8 @@ if (extBrowser.storage && extBrowser.storage.onChanged) {
     if (areaName !== 'local') return;
 
     if (changes.scanProgress) {
-      renderScanProgress(changes.scanProgress.newValue);
+      lastScanProgress = changes.scanProgress.newValue;
+      renderScanProgress(lastScanProgress);
     }
     if (changes.historySyncState) {
       renderHistorySyncStatus(changes.historySyncState.newValue);
@@ -1138,6 +1280,7 @@ function setupThumbnailCacheSettings() {
       try {
         await thumbnailCache.clearThumbnailCache();
         requestedCoverKeys.clear();
+        warmedCoverKeys.clear();
         await refreshThumbnailCacheStats();
         showCacheOpMessage('Cover cache cleared!');
         renderAlbumsBreakdown();
@@ -1220,7 +1363,17 @@ function setupDataBackupWorkflow() {
           }
           const { songsCount, artistsCount, albumsCount } = res.data;
           showImportExportMessage(`Imported ${songsCount} songs, ${artistsCount} artists, ${albumsCount} albums!`);
-          loadStats();
+
+          // The library was replaced wholesale, so every cover resolved for the previous
+          // one is meaningless. Dropping the marks lets the rebuilt cards resolve
+          // against the imported albums. The thumbnail cache itself is keyed by
+          // albumKey and survives the import, so warmedCoverKeys is left alone.
+          requestedCoverKeys.clear();
+
+          // The import replaces historySyncState and clears scanProgress, so both
+          // panels have to be re-read from storage. They are separate keys from
+          // the statistics, so the storage listener does not cover them.
+          await Promise.all([loadStats(), checkScanProgress(), checkHistorySyncStatus()]);
         } catch (parseErr) {
           showImportExportMessage('Invalid JSON format: ' + parseErr.message, true);
         } finally {
@@ -1252,6 +1405,9 @@ document.addEventListener('DOMContentLoaded', () => {
   loadStats();
   checkScanProgress();
   checkHistorySyncStatus();
+  // Drives the stale-scan timeout: without a re-render on a timer, a scan whose
+  // tab died produces no storage event and the panel stays stuck.
+  startScanPanelWatch();
 });
 
 /* ==========================================================================
@@ -1511,14 +1667,20 @@ function setupHistoryScannerLauncher() {
   elements.launchHistoryScannerBtn.addEventListener('click', async () => {
     debugLog('LAUNCHER', 'Launch Scanner button clicked.');
     
-    // Show immediate live feedback
-    renderScanProgress({
+    // Optimistic local feedback only; the authoritative state arrives from the
+    // content script once the history page starts reporting. Cached like any
+    // other payload so the panel watcher keeps it (and eventually ages it out)
+    // instead of snapping back to the previous run's state.
+    lastScanProgress = {
+      kind: 'scan',
       isScanning: true,
+      updatedAt: Date.now(),
       count: 0,
       unique: 0,
       latestTrack: null,
       statusText: 'Connecting to YouTube Music...'
-    });
+    };
+    renderScanProgress(lastScanProgress);
 
     await extBrowser.storage.local.set({ pendingAutostart: { time: Date.now(), forceRescan: false } });
     const historyUrl = YOUTUBE_MUSIC_HISTORY_URL;

@@ -27,11 +27,14 @@ import {
   PENDING_DURATIONS_KEY
 } from './storage.js';
 
+// cacheRemoteThumbnail is deliberately absent: an object URL minted in the service
+// worker cannot be displayed by an extension page, and downloading the image twice
+// (worker + page) doubled the cost of every cover. The Details page downscales and
+// caches it itself. See handleFetchAlbumCover.
 import {
   thumbnailCache,
   clearThumbnailCache,
-  getThumbnailStats,
-  cacheRemoteThumbnail
+  getThumbnailStats
 } from './thumbnails.js';
 
 import {
@@ -46,7 +49,9 @@ import {
   isRateLimitedStatus,
   parseBrowsePayload,
   resolveEnrichmentConfig,
-  createThrottledQueue
+  createThrottledQueue,
+  buildEnrichmentProgress,
+  shouldPublishEnrichmentProgress
 } from './enrichment.js';
 
 // Side-effect import: registers the shared browse parsers on `globalThis.YTMCShared`.
@@ -162,6 +167,16 @@ const CONTENT_SCRIPT_ORIGINS = ['https://music.youtube.com/'];
 
 /** Upper bound on a single history-import payload. */
 const MAX_HISTORY_IMPORT_TRACKS = 5000;
+
+/**
+ * Storage key for the resumable enrichment queue.
+ *
+ * Declared with the other storage keys rather than next to the pump: the import
+ * handler clears it, and `handleImportDataV2` is defined above that point.
+ * A `const` used before its declaration is a temporal dead zone error, not a
+ * hoisted value, so the two had to stay in that order.
+ */
+const ENRICHMENT_QUEUE_KEY = 'enrichmentQueue';
 
 /**
  * Validates that a message really came from this extension before acting on it.
@@ -589,7 +604,15 @@ async function handleImportDataV2(payload) {
       songs: bundle.songs,
       artists: bundle.artists,
       albums: bundle.albums,
-      historySyncState: bundle.historySyncState
+      historySyncState: bundle.historySyncState,
+      // The bundle replaces the whole library, so state left over from before the
+      // import is meaningless. Clearing scanProgress stops the Settings page from
+      // inheriting `isScanning: true` (and the pre-import latestTrack) and
+      // reporting "Syncing in progress" for a sync that is not running. Any queued
+      // enrichment job targets the previous library's albums and is dropped; a new
+      // one is queued immediately below against the imported albums.
+      scanProgress: null,
+      [ENRICHMENT_QUEUE_KEY]: null
     });
   });
 
@@ -1158,9 +1181,6 @@ async function filterRecentlyFailedAlbums(candidates) {
   }
 }
 
-/** Storage key for the resumable enrichment queue. */
-const ENRICHMENT_QUEUE_KEY = 'enrichmentQueue';
-
 /** Albums processed per pump before yielding back to the event loop. */
 const ENRICHMENT_BATCH_SIZE = 5;
 
@@ -1190,7 +1210,7 @@ let enrichmentPumpTimer = null;
 async function enqueueAlbumEnrichment(options) {
   const opts = options || {};
   const config = await getEnrichmentConfig();
-  const data = await extBrowser.storage.local.get(['albums', 'scanProgress']);
+  const data = await extBrowser.storage.local.get(['albums']);
   const selected = selectAlbumsToEnrich(data.albums || {}, {
     minUniqueTracks: config.minUniqueTracks,
     force: Boolean(opts.force)
@@ -1216,7 +1236,6 @@ async function enqueueAlbumEnrichment(options) {
     skipped: selected.length - candidates.length,
     force: Boolean(opts.force),
     progressPrefix: opts.progressPrefix || 'Fetching metadata',
-    baseScanProgress: data.scanProgress || {},
     startedAt: Date.now()
   };
 
@@ -1244,6 +1263,25 @@ async function resumeEnrichmentQueue() {
     debugLog('BG_ENRICH', `Resuming enrichment at ${job.index}/${job.candidates.length}.`);
     scheduleEnrichmentPump(0);
   } catch (_) {}
+}
+
+/**
+ * Writes enrichment progress to `scanProgress`, unless a live history scan owns
+ * the panel. Without this guard the pump overwrote the scanner's `isScanning`
+ * state mid-scan and the scanner looked stuck.
+ *
+ * @param {object} progress A payload from buildEnrichmentProgress.
+ * @returns {Promise<boolean>} Whether the write happened.
+ */
+async function publishEnrichmentProgress(progress) {
+  try {
+    const data = await extBrowser.storage.local.get(['scanProgress']);
+    if (!shouldPublishEnrichmentProgress(data.scanProgress)) return false;
+    await extBrowser.storage.local.set({ scanProgress: progress });
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 function scheduleEnrichmentPump(delayMs) {
@@ -1279,11 +1317,10 @@ async function pumpEnrichmentQueue() {
     // Progress is throttled: writing it for every album meant hundreds of
     // storage.set calls, and each one fired storage.onChanged on the Details page.
     if (job.index % ENRICHMENT_PROGRESS_WRITE_EVERY === 0) {
-      job.baseScanProgress = {
-        ...(job.baseScanProgress || {}),
-        statusText: `${prefix} (${job.index + 1}/${job.candidates.length})...`
-      };
-      await extBrowser.storage.local.set({ scanProgress: job.baseScanProgress }).catch(() => {});
+      await publishEnrichmentProgress(buildEnrichmentProgress(
+        job,
+        `${prefix} (${job.index + 1}/${job.candidates.length})...`
+      ));
     }
 
     const resolved = await ensureAlbumTracklist(albumKey, album.albumBrowseId);
@@ -1298,11 +1335,11 @@ async function pumpEnrichmentQueue() {
   }
 
   if (job.index >= job.candidates.length) {
-    job.baseScanProgress = {
-      ...(job.baseScanProgress || {}),
-      statusText: `${prefix} complete: ${job.updated}/${job.candidates.length} tracklists resolved.`
-    };
-    await extBrowser.storage.local.set({ scanProgress: job.baseScanProgress }).catch(() => {});
+    await publishEnrichmentProgress(buildEnrichmentProgress(
+      job,
+      `${prefix} complete: ${job.updated}/${job.candidates.length} tracklists resolved.`,
+      true
+    ));
     await extBrowser.storage.local.remove(ENRICHMENT_QUEUE_KEY);
     debugLog('BG_ENRICH', `Enrichment finished: ${job.updated} updated, ${job.failed} unresolved, ${job.skipped} skipped, of ${job.candidates.length}.`);
     return;

@@ -9,6 +9,14 @@
 
   const YOUTUBE_MUSIC_HISTORY_URL = 'https://music.youtube.com/history';
 
+  // `scanProgress.kind` values, mirroring background/enrichment.js. Duplicated
+  // rather than imported because this file is a classic content script: it has no
+  // module scope, and the manifest injects shared/ helpers on globalThis instead.
+  // The enrichment pump also writes `scanProgress`, so the two producers have to
+  // be distinguishable or its text leaks into the scanner's own note line.
+  const SCAN_PROGRESS_KIND = 'scan';
+  const ENRICHMENT_PROGRESS_KIND = 'enrichment';
+
   // Injected by the manifest before this file. Destructured without a fallback
   // on purpose: a missing helper is a broken bundle, and failing here beats
   // throwing "cannot read property of undefined" from every send below.
@@ -777,9 +785,15 @@
         : 'Scanning your listening history...';
     }
 
+    // `updatedAt` is what lets the Details page tell a running scan from one that
+    // died with its tab: this content script is the only writer that can clear
+    // `isScanning`, so without a heartbeat a scan interrupted mid-flight pinned
+    // the Settings page on "Syncing in progress" permanently.
     extBrowser.storage.local.set({
       scanProgress: {
+        kind: SCAN_PROGRESS_KIND,
         isScanning: true,
+        updatedAt: Date.now(),
         count: 0,
         unique: 0,
         latestTrack: null,
@@ -833,7 +847,9 @@
         }
         extBrowser.storage.local.set({
           scanProgress: {
+            kind: SCAN_PROGRESS_KIND,
             isScanning: true,
+            updatedAt: Date.now(),
             count: parsedItems.length,
             unique: new Set(parsedItems.map(p => `${p.track.title.toLowerCase()}:::${(p.track.artist || '').toLowerCase()}`)).size,
             latestTrack: parsedItems[0].track,
@@ -902,7 +918,9 @@
 
         extBrowser.storage.local.set({
           scanProgress: {
+            kind: SCAN_PROGRESS_KIND,
             isScanning: true,
+            updatedAt: Date.now(),
             count: scannedTracks.length,
             unique: uniqueCount,
             latestTrack: scannedTracks[scannedTracks.length - 1],
@@ -1009,7 +1027,9 @@
 
       const finishData = {
         scanProgress: {
+          kind: SCAN_PROGRESS_KIND,
           isScanning: false,
+          updatedAt: Date.now(),
           count: 0,
           unique: 0,
           latestTrack: null,
@@ -1040,7 +1060,9 @@
 
     extBrowser.storage.local.set({
       scanProgress: {
+        kind: SCAN_PROGRESS_KIND,
         isScanning: true,
+        updatedAt: Date.now(),
         count: tracksToImport.length,
         unique: uniqueSet.size,
         latestTrack: tracksToImport[0],
@@ -1072,7 +1094,9 @@
 
       extBrowser.storage.local.set({
         scanProgress: {
+          kind: SCAN_PROGRESS_KIND,
           isScanning: false,
+          updatedAt: Date.now(),
           count: importedCount,
           unique: uniqueCount,
           latestTrack: null,
@@ -1452,7 +1476,7 @@
         if (changes.scanProgress && changes.scanProgress.newValue) {
           const progress = changes.scanProgress.newValue;
           const note = document.getElementById('ytmc-scan-note');
-          if (note && progress.statusText) {
+          if (note && progress.statusText && progress.kind !== ENRICHMENT_PROGRESS_KIND) {
             note.textContent = progress.statusText;
           }
         }

@@ -15,7 +15,12 @@ import {
   shouldEnrichAlbum,
   selectAlbumsToEnrich,
   parseBrowsePayload,
-  createThrottledQueue
+  createThrottledQueue,
+  ENRICHMENT_PROGRESS_KIND,
+  STALE_SCAN_AFTER_MS,
+  buildEnrichmentProgress,
+  shouldPublishEnrichmentProgress,
+  isStaleScanProgress
 } from '../background/enrichment.js';
 
 /** The shared browse helpers, as published by shared/browse-parse.js. */
@@ -438,5 +443,98 @@ describe('Enrichment - createThrottledQueue', () => {
         restore();
       }
     });
+  });
+});
+
+describe('Enrichment progress - buildEnrichmentProgress', () => {
+  /**
+   * The bug this guards: the payload was built by spreading the `scanProgress`
+   * snapshot taken when the job was queued, so every write republished
+   * `isScanning: true` and that scan's `latestTrack`. The Settings page read
+   * "Syncing in progress" with the pre-import track forever.
+   */
+  function sampleJob(overrides = {}) {
+    return {
+      candidates: [['a:::b', {}], ['c:::d', {}]],
+      index: 1,
+      updated: 1,
+      failed: 0,
+      ...overrides
+    };
+  }
+
+  test('carries only enrichment state, never a scan field', () => {
+    const progress = buildEnrichmentProgress(sampleJob(), 'Fetching metadata (1/2)...');
+
+    assert.equal(progress.kind, ENRICHMENT_PROGRESS_KIND);
+    assert.equal(progress.isScanning, false, 'enrichment must not claim a scan is running');
+    assert.equal(progress.latestTrack, null);
+    assert.equal(progress.count, 0);
+    assert.equal(progress.unique, 0);
+    assert.equal(progress.statusText, 'Fetching metadata (1/2)...');
+    assert.equal(progress.enrichmentTotal, 2);
+    assert.equal(progress.enrichmentProcessed, 1);
+    assert.equal(progress.enrichmentDone, false);
+  });
+
+  test('the terminal write is marked done', () => {
+    const progress = buildEnrichmentProgress(
+      sampleJob({ index: 2 }),
+      'complete: 2/2 tracklists resolved.',
+      true
+    );
+
+    assert.equal(progress.enrichmentDone, true);
+    assert.equal(progress.enrichmentProcessed, 2);
+    assert.equal(progress.isScanning, false);
+  });
+
+  test('tolerates a job with no candidates', () => {
+    const progress = buildEnrichmentProgress({}, 'Fetching metadata...');
+
+    assert.equal(progress.isScanning, false);
+    assert.equal(progress.enrichmentTotal, 0);
+    assert.equal(progress.statusText, 'Fetching metadata...');
+  });
+
+  test('stamps a heartbeat so staleness checks have a reference point', () => {
+    const before = Date.now();
+    const progress = buildEnrichmentProgress(sampleJob(), 'Fetching metadata...');
+
+    assert.ok(progress.updatedAt >= before, 'carries a fresh updatedAt');
+    assert.equal(isStaleScanProgress(progress, before + 1000), false);
+  });
+});
+
+describe('Enrichment progress - shouldPublishEnrichmentProgress', () => {
+  test('holds back while a history scan is live', () => {
+    assert.equal(shouldPublishEnrichmentProgress({ kind: 'scan', isScanning: true }), false);
+  });
+
+  test('publishes over a finished scan or an existing enrichment payload', () => {
+    assert.equal(shouldPublishEnrichmentProgress({ kind: 'scan', isScanning: false }), true);
+    assert.equal(shouldPublishEnrichmentProgress({ kind: ENRICHMENT_PROGRESS_KIND, isScanning: false }), true);
+    assert.equal(shouldPublishEnrichmentProgress(null), true);
+  });
+});
+
+describe('Enrichment progress - isStaleScanProgress', () => {
+  const now = 10_000_000;
+
+  test('a scan with a fresh heartbeat is live', () => {
+    assert.equal(isStaleScanProgress({ kind: 'scan', isScanning: true, updatedAt: now - 1000 }, now), false);
+  });
+
+  test('a scan whose tab is gone is stale', () => {
+    assert.equal(
+      isStaleScanProgress({ kind: 'scan', isScanning: true, updatedAt: now - STALE_SCAN_AFTER_MS - 1 }, now),
+      true
+    );
+  });
+
+  test('never reports an enrichment payload or a finished scan as stale', () => {
+    assert.equal(isStaleScanProgress({ kind: ENRICHMENT_PROGRESS_KIND, updatedAt: 0 }, now), false);
+    assert.equal(isStaleScanProgress({ kind: 'scan', isScanning: false, updatedAt: 0 }, now), false);
+    assert.equal(isStaleScanProgress(null, now), false);
   });
 });

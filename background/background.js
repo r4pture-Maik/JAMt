@@ -54,10 +54,19 @@ import {
 // worlds share one implementation of the browse-response parsing.
 import '../shared/browse-parse.js';
 
+// Side-effect import: registers the cross-browser messaging helpers on
+// `globalThis.YTMCMessaging`. Same deal as above — one implementation for the
+// background, the content script, the popup and the Details page.
+import '../shared/messaging.js';
+
 if (!globalThis.YTMCShared || typeof globalThis.YTMCShared.buildBrowseRequestBody !== 'function') {
   // Without this the module would throw on the very first browse request, with a
   // stack trace pointing at the destructuring rather than at the real cause.
   throw new Error('[YTMusic Counter] shared/browse-parse.js failed to register globalThis.YTMCShared');
+}
+
+if (!globalThis.YTMCMessaging || typeof globalThis.YTMCMessaging.sendTabMessage !== 'function') {
+  throw new Error('[YTMusic Counter] shared/messaging.js failed to register globalThis.YTMCMessaging');
 }
 
 const {
@@ -66,6 +75,8 @@ const {
   buildBrowseRequestBody,
   getFallbackInnerTubeClient
 } = globalThis.YTMCShared;
+
+const { sendRuntimeMessage, sendTabMessage, sendRuntimeMessageIgnoringReply } = globalThis.YTMCMessaging;
 
 /** Single source of truth for the stale WEB_REMIX fallback context. */
 const FALLBACK_INNERTUBE_CLIENT = getFallbackInnerTubeClient();
@@ -97,8 +108,7 @@ function flushDebugLog() {
     // One message per batch instead of one per line: an enrichment sweep used to
     // emit hundreds of runtime messages, and the Details page re-rendered its
     // entire <pre> for every one of them.
-    const maybePromise = extBrowser.runtime.sendMessage({ type: 'DEBUG_LOG_BATCH', lines });
-    if (maybePromise && typeof maybePromise.catch === 'function') maybePromise.catch(() => {});
+    sendRuntimeMessageIgnoringReply({ type: 'DEBUG_LOG_BATCH', lines });
   } catch (_) {}
 }
 
@@ -112,11 +122,16 @@ function debugLog(tag, message, data) {
   } catch (_) {}
 }
 
-/** Extension pages may drive these; no content script may. */
-const PRIVILEGED_MESSAGE_TYPES = new Set([
+/**
+ * Message types only an extension page (popup, Details) may send.
+ *
+ * They overwrite the whole database (RESET_STATS, IMPORT_DATA_V2) or change
+ * extension configuration, so the boundary is enforced explicitly rather than
+ * left to the accident that a page cannot reach `runtime.onMessage`.
+ */
+const EXTENSION_PAGE_ONLY_TYPES = new Set([
   'RESET_STATS',
   'IMPORT_DATA_V2',
-  'IMPORT_HISTORY_TRACKS',
   'FETCH_MISSING_TRACKLISTS',
   'SET_ENRICHMENT_CONFIG',
   'CLEAR_THUMBNAIL_CACHE',
@@ -124,16 +139,43 @@ const PRIVILEGED_MESSAGE_TYPES = new Set([
   'PING_CONTENT_SCRIPT'
 ]);
 
+/**
+ * Message types the content script legitimately sends from the page origin.
+ *
+ * IMPORT_HISTORY_TRACKS belongs here and *not* in EXTENSION_PAGE_ONLY_TYPES: it
+ * is dispatched by content/content.js while the user sits on
+ * music.youtube.com/history, so its `sender.url` is the page and never the
+ * extension root. It used to sit in the extension-page-only set, which made the
+ * background answer "Untrusted message source." to every single history import:
+ * the scan ran, collected the plays, and the background silently threw them
+ * away.
+ */
+const CONTENT_SCRIPT_TYPES = new Set(['IMPORT_HISTORY_TRACKS']);
+
+/**
+ * Origins the content script may legitimately run on. Used as the trust anchor
+ * for CONTENT_SCRIPT_TYPES: the message must come from our own content script
+ * (already enforced by the sender.id check) *and* from a page we hold a host
+ * permission for.
+ */
+const CONTENT_SCRIPT_ORIGINS = ['https://music.youtube.com/'];
+
 /** Upper bound on a single history-import payload. */
 const MAX_HISTORY_IMPORT_TRACKS = 5000;
 
 /**
  * Validates that a message really came from this extension before acting on it.
  *
- * `runtime.onMessage` is reachable by every content script. A page cannot call it
- * directly today, but the handlers behind it overwrite the entire database
- * (RESET_STATS, IMPORT_DATA_V2, IMPORT_HISTORY_TRACKS), so the boundary is worth
- * enforcing explicitly rather than relying on that accident.
+ * `runtime.onMessage` is reachable by every content script of this extension.
+ * Web pages cannot call it, but the handlers behind it overwrite the entire
+ * database, so the boundary is worth enforcing explicitly.
+ *
+ * Three tiers:
+ *   1. `sender.id` must be this extension. This alone rejects every other
+ *      extension and every web page.
+ *   2. Unlisted types are trusted: they only read or report.
+ *   3. Listed types must additionally come from an allowed surface — an
+ *      extension page, or for CONTENT_SCRIPT_TYPES a music.youtube.com page.
  *
  * @param {any} message
  * @param {object} sender
@@ -142,10 +184,19 @@ const MAX_HISTORY_IMPORT_TRACKS = 5000;
 function isTrustedMessage(message, sender) {
   if (!message || typeof message.type !== 'string') return false;
   if (!sender || sender.id !== extBrowser.runtime.id) return false;
-  if (!PRIVILEGED_MESSAGE_TYPES.has(message.type)) return true;
 
-  const extensionRoot = extBrowser.runtime.getURL('');
-  return typeof sender.url === 'string' && sender.url.startsWith(extensionRoot);
+  const isExtensionPageOnly = EXTENSION_PAGE_ONLY_TYPES.has(message.type);
+  const isContentScript = CONTENT_SCRIPT_TYPES.has(message.type);
+  if (!isExtensionPageOnly && !isContentScript) return true;
+
+  const senderUrl = typeof sender.url === 'string' ? sender.url : '';
+  if (senderUrl.startsWith(extBrowser.runtime.getURL(''))) return true;
+
+  if (isContentScript) {
+    return CONTENT_SCRIPT_ORIGINS.some((origin) => senderUrl.startsWith(origin));
+  }
+
+  return false;
 }
 
 // Listen for storage changes to invalidate the stats cache
@@ -208,7 +259,6 @@ async function autoHealMissingTracklists() {
   } catch (_) {}
 }
 
-// Chrome / WebExtensions runtime message dispatcher
 extBrowser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!isTrustedMessage(message, sender)) {
     sendResponse({ status: 'error', error: 'Untrusted message source.' });
@@ -507,8 +557,6 @@ async function handleTrackPlayed(rawTrack) {
   };
 }
 
-
-
 /**
  * Handles 1-click export of data bundle conforming to Schema v2
  */
@@ -663,8 +711,12 @@ async function reconfigureTracklistQueue() {
 }
 
 /**
- * Sends a message to a tab's content script and normalizes the callback API
- * into a promise, rejecting when the content script is unreachable.
+ * Sends a message to a tab's content script, rejecting when the content script
+ * is unreachable.
+ *
+ * Thin alias over shared/messaging.js, kept as a named function because the
+ * call sites read better with the tab id first and because the timeout used to
+ * live here.
  *
  * @param {number} tabId
  * @param {object} message
@@ -672,43 +724,7 @@ async function reconfigureTracklistQueue() {
  * @returns {Promise<any>}
  */
 function sendMessageToTab(tabId, message, timeoutMs) {
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        reject(new Error(`Content script timed out after ${timeoutMs || 15000}ms`));
-      }
-    }, timeoutMs || 15000);
-
-    const finish = (fn, value) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      fn(value);
-    };
-
-    try {
-      const maybePromise = extBrowser.tabs.sendMessage(tabId, message, (response) => {
-        const lastError = extBrowser.runtime.lastError;
-        if (lastError) {
-          finish(reject, new Error(lastError.message || 'Content script unreachable'));
-          return;
-        }
-        finish(resolve, response);
-      });
-
-      // Firefox returns a promise; the callback above may never fire in that case.
-      if (maybePromise && typeof maybePromise.then === 'function') {
-        maybePromise.then(
-          (response) => finish(resolve, response),
-          (err) => finish(reject, err instanceof Error ? err : new Error(String(err && err.message ? err.message : err)))
-        );
-      }
-    } catch (err) {
-      finish(reject, err instanceof Error ? err : new Error(String(err)));
-    }
-  });
+  return sendTabMessage(tabId, message, timeoutMs || 15000);
 }
 
 /**

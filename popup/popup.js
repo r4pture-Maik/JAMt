@@ -5,6 +5,8 @@
 
 const extBrowser = typeof browser !== 'undefined' ? browser : chrome;
 
+const { sendRuntimeMessage } = globalThis.YTMCMessaging;
+
 const elements = {
   totalPlays: document.getElementById('totalPlays'),
   totalDuration: document.getElementById('totalDuration'),
@@ -41,17 +43,12 @@ elements.tabButtons.forEach(btn => {
 
 async function loadStats() {
   try {
-    extBrowser.runtime.sendMessage({ type: 'GET_STATS' }, (response) => {
-      if (extBrowser.runtime.lastError) {
-        console.warn('Could not communicate with background script:', extBrowser.runtime.lastError);
-        return;
-      }
-      if (response && response.status === 'ok') {
-        renderStats(response.data);
-      }
-    });
+    const response = await sendRuntimeMessage({ type: 'GET_STATS' });
+    if (response && response.status === 'ok') {
+      renderStats(response.data);
+    }
   } catch (err) {
-    console.error('Error loading stats:', err);
+    console.error('Could not communicate with background script:', err);
   }
 }
 
@@ -78,7 +75,6 @@ function renderStats(stats) {
   if (elements.uniqueAlbums) elements.uniqueAlbums.textContent = stats.uniqueAlbumsCount || 0;
   if (elements.completedAlbums) elements.completedAlbums.textContent = stats.completedAlbumsCount || 0;
 
-
   // Render Top Songs
   renderSongsList(stats.topSongs || []);
 
@@ -94,103 +90,148 @@ function cleanArtist(artist) {
   return String(artist).split('•')[0].trim();
 }
 
-function renderSongsList(items) {
-  if (!elements.topSongsList) return;
-  const top3 = (items || []).slice(0, 3);
-  if (top3.length === 0) {
-    elements.topSongsList.innerHTML = '<li class="empty-state">No songs tracked yet.</li>';
-    return;
+/**
+ * Replaces a list's content with a single "nothing here yet" row.
+ */
+function renderEmptyState(list, message) {
+  list.textContent = '';
+  const li = document.createElement('li');
+  li.className = 'empty-state';
+  li.textContent = message;
+  list.appendChild(li);
+}
+
+/**
+ * Builds one `<li class="ranked-item">` row.
+ *
+ * Built from DOM nodes rather than an innerHTML string: track titles and artist
+ * names come from YouTube Music, and addons-linter flags every innerHTML write
+ * as UNSAFE_VAR_ASSIGNMENT. Using textContent also means a title containing
+ * `<` or `"` cannot break out of the tooltip attribute.
+ *
+ * @param {number} rank 1-based position, rendered as "#1".
+ * @param {string} name Primary label.
+ * @param {string} [subtitle] Optional second line.
+ * @param {string} count Right-hand side label.
+ * @param {Node} [countPrefix] Optional node prepended inside the count label.
+ * @returns {HTMLLIElement}
+ */
+function createRankedItem(rank, name, subtitle, count, countPrefix) {
+  const li = document.createElement('li');
+  li.className = 'ranked-item';
+
+  const left = document.createElement('div');
+  left.className = 'ranked-left';
+
+  const index = document.createElement('span');
+  index.className = 'rank-index';
+  index.textContent = `#${rank}`;
+
+  const text = document.createElement('div');
+  text.className = 'rank-text';
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'rank-name';
+  nameEl.textContent = name;
+  nameEl.title = name;
+  text.appendChild(nameEl);
+
+  if (subtitle) {
+    const sub = document.createElement('span');
+    sub.className = 'rank-sub';
+    sub.textContent = subtitle;
+    sub.title = subtitle;
+    text.appendChild(sub);
   }
 
-  elements.topSongsList.innerHTML = '';
-  top3.forEach((song, idx) => {
-    const li = document.createElement('li');
-    li.className = 'ranked-item';
-    const displayArtist = cleanArtist(song.artist);
-    li.innerHTML = `
-      <div class="ranked-left">
-        <span class="rank-index">#${idx + 1}</span>
-        <div class="rank-text">
-          <div class="rank-name" title="${escapeHtml(song.title)}">${escapeHtml(song.title)}</div>
-          ${displayArtist ? `<span class="rank-sub" title="${escapeHtml(displayArtist)}">${escapeHtml(displayArtist)}</span>` : ''}
-        </div>
-      </div>
-      <span class="rank-count">${song.playCount} ${song.playCount === 1 ? 'play' : 'plays'}</span>
-    `;
-    elements.topSongsList.appendChild(li);
-  });
+  left.appendChild(index);
+  left.appendChild(text);
+
+  const countEl = document.createElement('span');
+  countEl.className = 'rank-count';
+  if (countPrefix) {
+    countEl.appendChild(countPrefix);
+    // The old markup put a space between the star and the label; keep it so
+    // the row does not read "★3 songs".
+    countEl.appendChild(document.createTextNode(' '));
+  }
+  countEl.appendChild(document.createTextNode(count));
+
+  li.appendChild(left);
+  li.appendChild(countEl);
+  return li;
+}
+
+/**
+ * Renders up to three rows into `list`, or an empty-state row.
+ *
+ * @param {Element} list
+ * @param {Array<object>} items
+ * @param {string} emptyMessage
+ * @param {(item: object, index: number) => HTMLLIElement} buildRow
+ */
+function renderTopThree(list, items, emptyMessage, buildRow) {
+  if (!list) return;
+  const top3 = (items || []).slice(0, 3);
+  if (top3.length === 0) {
+    renderEmptyState(list, emptyMessage);
+    return;
+  }
+  list.textContent = '';
+  top3.forEach((item, idx) => list.appendChild(buildRow(item, idx)));
+}
+
+/** "3 plays" / "1 play" */
+function pluralPlays(count) {
+  return `${count || 0} ${count === 1 ? 'play' : 'plays'}`;
+}
+
+function renderSongsList(items) {
+  renderTopThree(elements.topSongsList, items, 'No songs tracked yet.', (song, idx) =>
+    createRankedItem(
+      idx + 1,
+      song.title || '',
+      cleanArtist(song.artist),
+      pluralPlays(song.playCount)
+    )
+  );
 }
 
 function renderArtistsList(items) {
-  if (!elements.topArtistsList) return;
-  const top3 = (items || []).slice(0, 3);
-  if (top3.length === 0) {
-    elements.topArtistsList.innerHTML = '<li class="empty-state">No artists tracked yet.</li>';
-    return;
-  }
-
-  elements.topArtistsList.innerHTML = '';
-  top3.forEach((artist, idx) => {
-    const li = document.createElement('li');
-    li.className = 'ranked-item';
-    const displayArtist = cleanArtist(artist.artist);
-    li.innerHTML = `
-      <div class="ranked-left">
-        <span class="rank-index">#${idx + 1}</span>
-        <div class="rank-text">
-          <div class="rank-name" title="${escapeHtml(displayArtist)}">${escapeHtml(displayArtist)}</div>
-        </div>
-      </div>
-      <span class="rank-count">${artist.playCount} ${artist.playCount === 1 ? 'play' : 'plays'}</span>
-    `;
-    elements.topArtistsList.appendChild(li);
-  });
+  renderTopThree(elements.topArtistsList, items, 'No artists tracked yet.', (artist, idx) =>
+    createRankedItem(idx + 1, cleanArtist(artist.artist), '', pluralPlays(artist.playCount))
+  );
 }
 
 function renderAlbumsList(items) {
-  if (!elements.topAlbumsList) return;
-  const top3 = (items || []).slice(0, 3);
-  if (top3.length === 0) {
-    elements.topAlbumsList.innerHTML = '<li class="empty-state">No albums tracked yet.</li>';
-    return;
-  }
-
-  elements.topAlbumsList.innerHTML = '';
-  top3.forEach((album, idx) => {
-    const li = document.createElement('li');
-    li.className = 'ranked-item';
-    const uniqueTracks = album.uniqueTracksCount || (album.tracksListened ? Object.keys(album.tracksListened).length : 1);
+  renderTopThree(elements.topAlbumsList, items, 'No albums tracked yet.', (album, idx) => {
+    const uniqueTracks =
+      album.uniqueTracksCount ||
+      (album.tracksListened ? Object.keys(album.tracksListened).length : 1);
     const isComplete = album.completePlays > 0;
-    const tracksLabel = `${uniqueTracks} ${uniqueTracks === 1 ? 'song' : 'songs'}`;
-    const playsCount = `${album.playCount} ${album.playCount === 1 ? 'play' : 'plays'}`;
-    const playsLabel = isComplete
-      ? `<span class="star-mark" title="Completed ${album.completePlays}x">★</span> ${tracksLabel} - ${playsCount}`
-      : `${tracksLabel} - ${playsCount}`;
 
-    const cleanArtistName = cleanArtist(album.artist);
-    const hasDistinctArtist = cleanArtistName && cleanArtistName.toLowerCase() !== (album.album || '').toLowerCase();
+    const artistName = cleanArtist(album.artist);
+    const hasDistinctArtist =
+      artistName && artistName.toLowerCase() !== (album.album || '').toLowerCase();
 
-    li.innerHTML = `
-      <div class="ranked-left">
-        <span class="rank-index">#${idx + 1}</span>
-        <div class="rank-text">
-          <div class="rank-name" title="${escapeHtml(album.album)}">${escapeHtml(album.album)}</div>
-          ${hasDistinctArtist ? `<span class="rank-sub" title="${escapeHtml(cleanArtistName)}">${escapeHtml(cleanArtistName)}</span>` : ''}
-        </div>
-      </div>
-      <span class="rank-count">${playsLabel}</span>
-    `;
-    elements.topAlbumsList.appendChild(li);
+    // The star is a node, not markup, so it keeps its own tooltip.
+    let star = null;
+    if (isComplete) {
+      star = document.createElement('span');
+      star.className = 'star-mark';
+      star.textContent = '★';
+      star.title = `Completed ${album.completePlays}x`;
+    }
+
+    const count = `${uniqueTracks} ${uniqueTracks === 1 ? 'song' : 'songs'} - ${pluralPlays(album.playCount)}`;
+    return createRankedItem(
+      idx + 1,
+      album.album || '',
+      hasDistinctArtist ? artistName : '',
+      count,
+      star
+    );
   });
-}
-
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 // Refresh stats button handler

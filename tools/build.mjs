@@ -16,7 +16,7 @@
  *   node tools/build.mjs chrome       # one target
  */
 
-import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, existsSync } from "node:fs";
 import { deflateRawSync } from "node:zlib";
 import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,6 +34,15 @@ const BUNDLE_FILES = ["manifest.json", "LICENSE"];
  *  refuses to load the extension entirely. */
 const MIN_CHROME_FOR_BACKGROUND_SCRIPTS = 121;
 
+/**
+ * `browser_specific_settings.gecko.data_collection_permissions` is required for
+ * every new add-on submitted to AMO since 2025-11-03, but Firefox only
+ * understands it from 140. Declaring the key under a lower floor is rejected by
+ * addons-linter (KEY_FIREFOX_UNSUPPORTED_BY_MIN_VERSION) and would also leave
+ * older Firefox with a consent experience nobody sees.
+ */
+const MIN_FIREFOX_FOR_DATA_COLLECTION_PERMISSIONS = 140;
+
 const TARGETS = {
   chrome: {
     store: "Chrome Web Store",
@@ -42,6 +51,11 @@ const TARGETS = {
       // noise during review.
       delete m.background?.scripts;
       delete m.browser_specific_settings;
+      // Firefox-specific hardening: `not_allowed` keeps the content script out
+      // of Chrome incognito windows, where counts would land in the same
+      // storage.local as the normal profile. Dropping it restores Chrome's
+      // default ("spanning"), which is what shipped before.
+      delete m.incognito;
     },
     expect: "service_worker",
   },
@@ -190,6 +204,76 @@ function validateSource(manifest) {
     errors.push("background.service_worker is missing: Chrome has no fallback.");
   }
 
+  // Same invariant, Firefox side: AMO blocks new add-ons without the key, and
+  // the key is meaningless below Firefox 140.
+  const gecko = manifest.browser_specific_settings?.gecko;
+  if (gecko && !gecko.data_collection_permissions) {
+    errors.push(
+      `browser_specific_settings.gecko.data_collection_permissions is missing. ` +
+        `AMO refuses new add-ons without it (mandatory since 2025-11-03). This ` +
+        `extension transmits nothing outside the browser, so the value must be ` +
+        `{ "required": ["none"] }.`,
+    );
+  }
+  if (gecko?.data_collection_permissions) {
+    const min = parseFloat(gecko.strict_min_version ?? "0") || 0;
+    if (min < MIN_FIREFOX_FOR_DATA_COLLECTION_PERMISSIONS) {
+      errors.push(
+        `data_collection_permissions is present, so gecko.strict_min_version must be >= ` +
+          `${MIN_FIREFOX_FOR_DATA_COLLECTION_PERMISSIONS} (found ${gecko.strict_min_version}). ` +
+          `Firefox ignores the key below that, so users would never see the data ` +
+          `collection consent.`,
+      );
+    }
+    // `incognito: not_allowed` keeps the content script out of private windows.
+    // Without it the default is "spanning": opt-in from about:addons, but then
+    // storage.local would hold listening counts from a private session, which
+    // Add-on Policies 6.3.2 forbids for listed add-ons.
+    //
+    // It is a TOP-LEVEL manifest key, not a gecko one: nesting it under
+    // browser_specific_settings.gecko is not part of the schema, so Firefox
+    // logged `An unexpected property was found in the WebExtension manifest` on
+    // every load and silently ignored it, leaving the add-on default to
+    // "spanning".
+    if (manifest.incognito !== "not_allowed") {
+      errors.push(
+        `manifest "incognito" must be "not_allowed" (top-level key, NOT under ` +
+          `browser_specific_settings.gecko). Add-on Policies 6.3.2 forbid storing ` +
+          `data from private browsing sessions. Found: ${JSON.stringify(manifest.incognito)}.`,
+      );
+    }
+    // Regression guard: the key used to live here, where Firefox does not read it.
+    if (gecko && "incognito" in gecko) {
+      errors.push(
+        `browser_specific_settings.gecko.incognito is not a valid gecko property. ` +
+          `Firefox rejects it with "An unexpected property was found in the ` +
+          `WebExtension manifest" and ignores it. Use the top-level "incognito" key.`,
+      );
+    }
+  }
+
+  // Every runtime message goes through shared/messaging.js, which picks the
+  // calling convention the host engine accepts. If a context forgets to load
+  // it, every message throws on the other engine and the extension silently
+  // stops tracking, so it is worth a build-time guard.
+  if (!existsSync(join(ROOT, "shared", "messaging.js"))) {
+    errors.push("shared/messaging.js is missing: no context can reach the background.");
+  }
+  for (const [file, who] of [
+    ["content/content.js", "the content script"],
+    ["background/background.js", "the background script"],
+    ["popup/popup.js", "the popup"],
+    ["details/details.js", "the Details page"],
+  ]) {
+    const abs = join(ROOT, file);
+    if (!existsSync(abs) || !readFileSync(abs, "utf8").includes("YTMCMessaging")) {
+      errors.push(`${file} does not use shared/messaging.js, so ${who} cannot reach the background.`);
+    }
+  }
+  if (!readFileSync(join(ROOT, "popup", "popup.html"), "utf8").includes("shared/messaging.js")) {
+    errors.push("popup/popup.html does not load shared/messaging.js, so the popup has no helper.");
+  }
+
   return errors;
 }
 
@@ -207,6 +291,14 @@ function buildTarget(name, spec, sourceManifest) {
       warnings.push(
         `browser_specific_settings.gecko.id is the placeholder "${geckoId}". ` +
           `AMO will not accept it: set a real add-on id before submitting.`,
+      );
+    }
+    // The source manifest carries the real id; make sure the transform did not
+    // drop it, since Firefox refuses to load an MV3 add-on without one.
+    if (!geckoId) {
+      warnings.push(
+        `browser_specific_settings.gecko.id is missing. Manifest V3 add-ons ` +
+          `must declare an id to be signed.`,
       );
     }
   }

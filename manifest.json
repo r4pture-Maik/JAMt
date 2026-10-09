@@ -5,15 +5,21 @@
   "minimum_chrome_version": "121",
   "description": "Tracks and counts your played tracks and listening stats on YouTube Music.",
   "author": "r4pture-maik",
+  "homepage_url": "https://github.com/r4pture-Maik/ytmusic-counter",
+  "incognito": "not_allowed",
   "browser_specific_settings": {
     "gecko": {
-      "id": "ytmusic-counter@example.com",
-      "strict_min_version": "121.0"
+      "id": "m4ikh@proton.me",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
     }
   },
   "permissions": [
-    "storage",
-    "tabs"
+    "storage"
   ],
   "host_permissions": [
     "*://music.youtube.com/*",
@@ -41,7 +47,7 @@
   "content_scripts": [
     {
       "matches": ["*://music.youtube.com/*"],
-      "js": ["shared/browse-parse.js", "content/content.js"],
+      "js": ["shared/browse-parse.js", "shared/messaging.js", "content/content.js"],
       "css": ["content/content.css"],
       "run_at": "document_idle"
     },

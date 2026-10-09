@@ -2,7 +2,7 @@
 
 > **Date:** 2026-09-26
 
-Last updated: September 2026
+Last updated: October 2026
 
 **YTMusic Counter** is built on a privacy-first architecture. It exists to give you personal insight into your own YouTube Music listening habits, and for no other purpose. There is no server component, no account, and no backend. Nobody — including the author — can see your data.
 
@@ -33,6 +33,10 @@ The extension is not fully offline, because reading your play history and loadin
 * The extension never receives, reads, stores, or transmits your Google account credentials, cookies, or session tokens.
 * No request is ever sent to a server operated by the author. The GitHub repository is where the source code lives; it is not a data endpoint.
 * Album artwork requests reveal only that a given cover image was requested. They carry no play counts, no listening history, and no identifiers belonging to you.
+* **You do not need to be signed in.** Play counting, the badge, statistics, and album
+  metadata all work on an anonymous YouTube Music session. Only the optional
+  [History Import](#-history-import-what-we-read-from-youtube-music) needs a signed-in
+  session, because it reads the history page your account can see.
 
 If you would prefer the extension make no network requests at all, you can block `music.youtube.com` in your browser's extension settings. Historical tracking will stop working, but nothing else changes.
 
@@ -43,14 +47,22 @@ If you would prefer the extension make no network requests at all, you can block
 | Permission | Purpose |
 | :--- | :--- |
 | `storage` | Saves your song, artist, and album play counts, plus your settings, in your browser's local storage. |
-| `tabs` | Used only to find, open, or focus `music.youtube.com` tabs. This is how the popup knows whether YouTube Music is running, and how the history scanner reuses a tab you already have open instead of opening a new one. It is never used to read the contents of any other tab. |
 | `*://music.youtube.com/*` (Host) | Injects the content script that detects track playback and renders the in-player play count badge. It is also what allows the extension to read your YouTube Music listening history — see [History Import](#-history-import-what-we-read-from-youtube-music) below. |
 | `*.googleusercontent.com`, `*.ggpht.com`, `*.ytimg.com` (Host) | Allows album cover images to be downloaded from Google's image CDNs and cached locally. |
 
+**No `tabs` permission is requested.** Finding, opening, or focusing a `music.youtube.com`
+tab relies on the host permission above, which already grants the extension everything it
+needs for that. The extension never reads the contents of any other tab.
+
 No permission is requested for your downloads, clipboard, camera, microphone,
-geolocation, or cookies. In particular the extension does **not** request Chrome's
-`history`, `browsingData`, or `webNavigation` permissions, and it never touches
+geolocation, or cookies. In particular the extension does **not** request the `history`,
+`browsingData`, or `webNavigation` permissions in any browser, and it never touches
 browsing history from outside YouTube Music.
+
+It does read your **YouTube Music listening history**, but not through a browser
+permission: it asks YouTube Music itself, over your existing signed-in session,
+and only to build the statistics this extension exists to show. That is the most
+sensitive thing it does, so it is documented in full in the next section.
 
 It does read your **YouTube Music listening history**, but not through a browser
 permission: it asks YouTube Music itself, over your existing signed-in session,
@@ -113,28 +125,83 @@ YouTube Music and Google collect data under their own privacy policies, independ
 
 ---
 
+## 🦊 Firefox Add-ons (AMO)
+
+The extension is also published on addons.mozilla.org, which enforces the same
+guarantees through its own mechanism: the built-in data collection consent. The manifest
+declares
+
+```json
+"browser_specific_settings": {
+  "gecko": {
+    "data_collection_permissions": { "required": ["none"] }
+  }
+}
+```
+
+`none` is the accurate value: nothing is collected or transmitted outside your browser.
+Firefox shows this declaration during installation and lists it under *Permissions and
+data* in `about:addons`, so the claim is not just documented here — it is displayed by the
+browser itself.
+
+### Private browsing
+
+The manifest declares `"incognito": "not_allowed"`. The extension cannot be enabled in
+private windows, so it cannot store listening counts from a private session. This is
+required by the [Add-on Policies](https://extensionworkshop.com/documentation/publish/add-on-policies/)
+(§6.3.2: *"Data from private browsing sessions must not be stored"*) for any add-on listed
+on AMO.
+
+### What the extension does and does not transmit
+
+Identical to the guarantees above, restated for the AMO review:
+
+* **No transmission.** No telemetry, no analytics, no remote logging, no server.
+* **Local storage only.** `storage.local` plus a local IndexedDB cover-art cache.
+* **Network destinations are limited to `music.youtube.com` and Google's image CDNs**, the
+  same hosts YouTube Music already contacts while you use it.
+* **No credentials are read, stored, or forwarded.** Requests run over your existing
+  signed-in session or anonymously.
+* **No remote code.** Nothing is evaluated from a network response.
+
+Because nothing leaves the device, the AMO data collection declaration is `none`.
+
+---
+
 ## 🔒 Chrome Web Store Limited Use
 
 This extension is published on the Chrome Web Store, so it is bound by the Store's
-Limited Use requirements. The required affirmation:
+[Limited Use requirements](https://developer.chrome.com/docs/webstore/program-policies/limited-use).
+The required affirmation:
 
 > The use of information received from Google APIs will adhere to the Chrome Web
 > Store User Data Policy, including the Limited Use requirements.
 
-Concretely, that means:
+This document is the page that affirmation refers to, and it is linked from the extension's
+`homepage_url`.
 
-* **Single purpose.** The data is used only to count listening activity and show you
-  those counts. It is not used for advertising, profiling, credit decisions, or any
-  other purpose.
-* **No third parties.** Data is never transferred to anyone — not advertisers, not
-  data brokers, not analytics providers. There is no third party to transfer it to.
-* **No human access.** Not the author, not Google, not anyone else. Your data has no
-  reader, because it never leaves your device.
-* **No browsing activity.** The extension does not collect web browsing activity. The
-  only page it reads is YouTube Music, and only to serve the feature described in
-  [History Import](#-history-import-what-we-read-from-youtube-music).
-* **Deletion on request.** Wiping your data in the extension, or uninstalling it,
-  removes every trace of it.
+### What the extension does, and what it never does
+
+| Limited Use requirement | How this extension complies |
+| :--- | :--- |
+| **#2 — limit use to disclosed practices** | Data is read only to produce the counts shown in the popup and on the Details page. No other use exists in the code. |
+| **#3 — only what the single purpose needs** | One API permission (`storage`) and four host permissions, all functionally required. No `tabs`, `history`, `cookies`, `webRequest`, `debugger`, or `<all_urls>`. |
+| **#4 — browsing activity** | The extension does **not** read Chrome's browsing history and does not request the `history` permission. Its one page-reading feature is History Import, described prominently below and in the store listing; it runs only when you press the button. |
+| **#5.2 — transfer to third parties** | None. There is no server, so there is no recipient. |
+| **#5.3 — human access to data** | None. The author never sees your library; it does not leave your device. |
+| **#5.4 — prohibited uses** | None. No advertising, no profiling, no credit or lending decisions, no sale. |
+| **#6 — affirmative statement** | The sentence quoted above, on this page. |
+
+### Deletion on request
+
+Wiping your data in **Details & Configuration → Wipe All Stored Data**, or uninstalling the
+extension, removes every trace of it. Storage is `storage.local` plus a local IndexedDB
+cover-art cache; both are cleared.
+
+### Trademark
+
+YouTube and YouTube Music are trademarks of Google LLC. YTMusic Counter is an independent
+open-source project, not affiliated with, endorsed by, or sponsored by Google LLC.
 
 
 ---

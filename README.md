@@ -12,7 +12,7 @@ A lightweight, privacy-friendly Firefox WebExtension (Manifest V3) that tracks a
    - **Artists**: Lifetime plays aggregated across all songs by that artist (including collaborations).
    - **Albums**: Counts how many times you have listened to a full album **from start to finish** without skipping.
 3. **Optimized Storage**: Uses compact $O(1)$ dictionary key-value maps. Zero bloat, no unbounded chronological histories, and negligible memory footprint (< 400 KB even after years of continuous listening).
-4. **No Build Step Required**: Pure WebExtensions (Manifest V3) JavaScript, CSS, and HTML.
+4. **No Build Step Required**: Pure WebExtensions (Manifest V3) JavaScript, CSS, and HTML. A release packager (`tools/build.mjs`) copies the served files and strips the manifest keys each browser does not implement — see [Building for Release](#-building-for-release).
 5. **Full Details Page & Config**: Dedicated tab view with a "Totals Song Listened" hero row and a Config tab featuring a safe 3-step confirmation data wipe.
 6. **Automated History Scanner**: Scans `music.youtube.com/history` with auto-scrolling to extract past listening history and batch-import all tracks, plays, and artists into your extension stats.
 
@@ -22,23 +22,44 @@ A lightweight, privacy-friendly Firefox WebExtension (Manifest V3) that tracks a
 
 ```text
 ytmusic-counter/
-├── manifest.json              # WebExtension Manifest V3 metadata & permissions
+├── manifest.json              # WebExtension MV3 metadata, single source for both stores
 ├── background/
-│   └── background.js          # Background service managing grouped counters in storage
+│   ├── background.js          # Message router, play counting, enrichment pump
+│   ├── storage.js             # storage.local schema, counters, export/import, lock
+│   ├── scoring.js             # Album completion logic, track-title index
+│   ├── duration.js            # Listening-time accumulation
+│   ├── enrichment.js          # Throttled browse queue & retry bookkeeping
+│   └── thumbnails.js          # IndexedDB cover-art cache (128px WebP)
 ├── content/
-│   ├── content.js             # Injected script detecting playback, albums & song badge
-│   └── content.css            # Styling for the per-song badge on YouTube Music's player
+│   ├── content.js             # Playback detection, in-player badge, history scanner
+│   └── content.css            # Badge styling on the YouTube Music player
+├── shared/
+│   ├── browse-parse.js        # InnerTube browse payload parsing (both worlds)
+│   ├── messaging.js           # Cross-engine runtime/tabs messaging (see below)
+│   └── page-context.js        # MAIN-world ytcfg bridge, via postMessage
 ├── details/
-│   ├── details.html           # Full details page with statistics & config tabs
-│   ├── details.css            # Responsive dark mode styling for the details dashboard
-│   └── details.js             # Tab switcher, stats sync & 3-step confirmation data wipe
+│   ├── details.html           # Statistics & configuration page
+│   ├── details.css            # Dark theme dashboard styling
+│   └── details.js             # Tab logic, stats sync, config, 3-step data wipe
 ├── popup/
-│   ├── popup.html             # Extension popup with tabs for Songs, Artists, and Albums
+│   ├── popup.html             # Toolbar popup: Songs / Artists / Albums
 │   ├── popup.css              # Dark theme styling (YouTube Music aesthetic)
-│   └── popup.js               # Tab logic, real-time counters & storage sync
+│   └── popup.js               # Ranked lists & live counters
 ├── icons/                     # 16/32/48/128 PNG icons
-└── README.md                  # Documentation & setup guide
+├── tools/build.mjs            # Release packager (Chrome + Firefox bundles)
+├── tests/                     # node:test unit suite
+├── PRIVACY.md                 # Privacy policy (also used for both store listings)
+└── README.md                  # This file
 ```
+
+`shared/browse-parse.js` is loaded twice on purpose: once as an ES module by the
+background, and once as a classic script in the isolated content-script world, so both share
+one implementation of the browse-response parsing.
+
+`shared/messaging.js` follows the same pattern and exists because the two engines do not
+accept each other's calling convention: `chrome.*` is callback-only, while `browser.*` is
+promise-only and **throws** if handed a callback. Every `sendMessage` therefore goes through
+this helper, which picks the convention the host engine accepts.
 
 ---
 
@@ -50,13 +71,22 @@ In Firefox, enter the following URL in the address bar:
 about:debugging#/runtime/this-firefox
 ```
 
-### 2. Load the Extension
+### 2. Build the Firefox bundle
+```bash
+npm run build:firefox   # -> dist/firefox/
+```
+
+### 3. Load the Extension
 1. Under **Temporary Extensions**, click **"Load Temporary Add-on..."**.
-2. Browse to the extension folder:
-   ```text
-   path/to/ytmusic-counter
-   ```
-3. Select `manifest.json` and click **Open**.
+2. Browse to **`dist/firefox/`** and select **`manifest.json`**, then click **Open**.
+
+> Load `dist/firefox/manifest.json`, **not** the one in the project root. The root manifest
+> is the cross-platform source and still carries `background.service_worker`, which Firefox
+> does not implement; the bundle is the one the packager produced for this browser.
+
+> After reloading the add-on, **reload your `music.youtube.com` tab** as well. Firefox
+> injects content scripts on page load, so a tab left open keeps running the previous
+> version.
 
 ---
 
@@ -115,11 +145,26 @@ source above and both stores accept it without a separate source-code submission
 The single `manifest.json` is the source of truth for both. It carries both
 `background.service_worker` (Chrome) and `background.scripts` (Firefox) because the two
 browsers implement MV3 background contexts differently, and the build strips whichever
-one the target does not want.
+one the target does not want. The whole `browser_specific_settings` block is dropped from
+the Chrome bundle, and so is `incognito`, so neither Firefox-only key reaches that store.
 
 > `minimum_chrome_version` must stay at **121 or above** while `background.scripts` is
 > present in the source manifest: Chrome 120 and earlier refuse to load the extension
 > outright. The build fails loudly if that invariant is ever broken.
+
+### Store-specific manifest keys
+
+| Key | Firefox | Chrome | Why |
+| :--- | :--- | :--- | :--- |
+| `browser_specific_settings.gecko.data_collection_permissions` | `required: ["none"]` | dropped | Mandatory on AMO for new add-ons since 2025-11-03. `none` is accurate: nothing leaves the browser. |
+| `browser_specific_settings.gecko.strict_min_version` | `140.0` | — | The data collection key only exists from Firefox 140. |
+| `incognito` (top level) | `not_allowed` | dropped | Add-on Policies §6.3.2 forbid storing private-browsing data for listed add-ons. This is a **top-level** key: nesting it under `browser_specific_settings.gecko` is not in the schema, so Firefox logged a manifest warning and ignored it. |
+| `browser_specific_settings.gecko.id` | required | dropped | Required to sign MV3 on AMO. |
+| `background.service_worker` / `background.scripts` | one each | one each | Firefox has no MV3 service worker (bug 1573659). |
+
+`tools/build.mjs` refuses to build if the Firefox floor drops below 140 while the data
+collection key is present, or if `incognito` goes missing — including a guard that
+rejects the invalid `browser_specific_settings.gecko.incognito` spelling.
 
 ---
 

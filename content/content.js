@@ -7,33 +7,22 @@
 (function () {
   const extBrowser = typeof browser !== 'undefined' ? browser : chrome;
 
-  /**
-   * Sends a runtime message without caring about the reply.
-   *
-   * Chrome's `runtime.sendMessage` returns `undefined` (it is callback-based),
-   * while Firefox's returns a Promise. Calling `.catch()` directly on the Chrome
-   * return value throws `TypeError: Cannot read properties of undefined`, so the
-   * return value has to be feature-detected.
-   *
-   * @param {object} message
-   */
-  function sendMessageIgnoringReply(message) {
-    try {
-      const maybePromise = extBrowser.runtime.sendMessage(message);
-      if (maybePromise && typeof maybePromise.catch === 'function') {
-        maybePromise.catch(() => {});
-      }
-    } catch (_) {
-      // Background not ready; diagnostics are best-effort.
-    }
-  }
+  const YOUTUBE_MUSIC_HISTORY_URL = 'https://music.youtube.com/history';
+
+  // Injected by the manifest before this file. Destructured without a fallback
+  // on purpose: a missing helper is a broken bundle, and failing here beats
+  // throwing "cannot read property of undefined" from every send below.
+  const {
+    sendRuntimeMessage,
+    sendRuntimeMessageIgnoringReply: sendMessageIgnoringReply
+  } = globalThis.YTMCMessaging;
+
+  console.log('[YTMusic Counter] Content script initialized.');
 
   let lastTrackKey = null;
   let currentSongPlays = 0;
   let trackPlaybackTimer = null;
   const MIN_PLAY_TIME_MS = 5000; // Minimum active listening duration
-
-  console.log('[YTMusic Counter] Content script initialized.');
 
   /**
    * Extracts metadata of the currently playing song from the DOM
@@ -163,8 +152,6 @@
     return false;
   }
 
-
-
   /* ==========================================================================
      Continuous Listening Duration Tracker Module
      ========================================================================== */
@@ -278,14 +265,14 @@
       }
 
       // Step 1: Immediately fetch existing play count for THIS song and update badge
-      extBrowser.runtime.sendMessage({
-        type: 'GET_SONG_COUNT',
-        payload: track
-      }, (res) => {
+      sendRuntimeMessage({ type: 'GET_SONG_COUNT', payload: track }).then((res) => {
         if (res && res.status === 'ok') {
           currentSongPlays = res.data.songPlays || 0;
           updateSongBadge(currentSongPlays, false);
         }
+      }).catch(() => {
+        // Background asleep or unreachable: the badge stays as it is, and the
+        // 5-second timer below still records the play.
       });
 
       // Step 2: Set threshold timer (5 seconds of active playback)
@@ -301,20 +288,15 @@
    * Sends play notification to background script and updates UI
    */
   function countSongPlay(track) {
-    try {
-      extBrowser.runtime.sendMessage({
-        type: 'TRACK_PLAYED',
-        payload: track
-      }, (response) => {
-        if (response && response.status === 'ok') {
-          currentSongPlays = response.data.songPlays;
-          console.log(`[YTMusic Counter] "${track.title}" play registered! Total plays for this song: ${currentSongPlays}`);
-          updateSongBadge(currentSongPlays, true);
-        }
-      });
-    } catch (err) {
+    sendRuntimeMessage({ type: 'TRACK_PLAYED', payload: track }).then((response) => {
+      if (response && response.status === 'ok') {
+        currentSongPlays = response.data.songPlays;
+        console.log(`[YTMusic Counter] "${track.title}" play registered! Total plays for this song: ${currentSongPlays}`);
+        updateSongBadge(currentSongPlays, true);
+      }
+    }).catch((err) => {
       console.warn('[YTMusic Counter] Messaging error:', err);
-    }
+    });
   }
 
   /**
@@ -640,7 +622,9 @@
   }
 
   function injectHistoryScannerOverlay() {
-    if (document.getElementById('ytmc-history-scanner-overlay')) return;
+    if (document.getElementById('ytmc-history-scanner-overlay')) {
+      return;
+    }
 
     const overlay = document.createElement('div');
     overlay.id = 'ytmc-history-scanner-overlay';
@@ -712,16 +696,23 @@
       });
     }
 
-    if (window.location.search.includes('autostart=1')) {
-      const force = window.location.search.includes('forceRescan=1');
+    // Two autostart paths: a query param when the launcher navigated here
+    // directly, and a storage flag when YouTube's SPA swallowed the param.
+    const search = window.location.search || '';
+
+    if (search.includes('autostart=1')) {
+      const force = search.includes('forceRescan=1');
       setTimeout(() => startHistoryScan(force), 1200);
     } else {
-      // Check for storage-based autostart to bypass SPA navigation query param stripping
-      extBrowser.storage.local.get(['pendingAutostart'], (data) => {
-        if (data.pendingAutostart && Date.now() - data.pendingAutostart.time < 15000) {
+      extBrowser.storage.local.get(['pendingAutostart']).then((data) => {
+        const pending = data && data.pendingAutostart;
+        if (!pending) return;
+        if (Date.now() - pending.time < 15000) {
           extBrowser.storage.local.remove('pendingAutostart');
-          setTimeout(() => startHistoryScan(data.pendingAutostart.forceRescan), 1200);
+          setTimeout(() => startHistoryScan(pending.forceRescan), 1200);
         }
+      }).catch(() => {
+        // No stored autostart request, or storage unavailable: nothing to resume.
       });
     }
   }
@@ -731,7 +722,7 @@
     isScanning = true;
     idleScrollCount = 0;
     scannedTracks = [];
-    
+
     sendMessageIgnoringReply({ type: 'DEBUG_LOG', tag: 'SCANNER', message: 'startHistoryScan initiated.' });
 
     // Clear any previous processed markers on DOM elements
@@ -740,11 +731,12 @@
     });
 
     let isForce = forceRescan || window.location.search.includes('forceRescan=1');
+
     if (!isForce) {
       try {
         const syncData = await extBrowser.storage.local.get(['historySyncState', 'totalPlays', 'songs']);
-        const isStorageEmpty = (!syncData.totalPlays || syncData.totalPlays === 0) &&
-                               (!syncData.songs || Object.keys(syncData.songs).length === 0);
+        const songCount = syncData.songs ? Object.keys(syncData.songs).length : 0;
+        const isStorageEmpty = (!syncData.totalPlays || syncData.totalPlays === 0) && songCount === 0;
 
         if (isStorageEmpty) {
           activeSyncState = null;
@@ -765,7 +757,6 @@
       ? activeSyncState.watermark
       : [];
 
-    console.log('[YTMC Content] Starting scan. Force rescan:', isForce, 'Watermark size:', watermark.length);
     sendMessageIgnoringReply({ type: 'DEBUG_LOG', tag: 'SCANNER', message: `Starting scan loop. Force: ${isForce}, Watermark size: ${watermark.length}` });
 
     const startBtn = document.getElementById('ytmc-start-scan-btn');
@@ -786,7 +777,6 @@
         : 'Scanning your listening history...';
     }
 
-    // Broadcast starting state
     extBrowser.storage.local.set({
       scanProgress: {
         isScanning: true,
@@ -806,6 +796,8 @@
       if (scanTickInFlight) return;
       scanTickInFlight = true;
       try {
+      // YouTube renders the history list lazily, so an empty first tick after
+      // navigation is normal.
       const itemElements = Array.from(document.querySelectorAll('ytmusic-responsive-list-item-renderer'));
       if (itemElements.length === 0) {
         return;
@@ -819,7 +811,9 @@
         }
       }
 
-      if (parsedItems.length === 0) return;
+      if (parsedItems.length === 0) {
+        return;
+      }
 
       const hasWatermark = watermark.length > 0;
 
@@ -829,13 +823,11 @@
 
         if (boundaryIndex >= 0) {
           const newTracks = parsedItems.slice(0, boundaryIndex).map(p => p.track);
-          console.log(`[YTMC Sync] Watermark boundary matched at index ${boundaryIndex}! New plays to import: ${newTracks.length}`);
           stopAndSaveHistory(true, boundaryIndex === 0 ? 'Already up to date' : 'Sync complete', newTracks, parsedItems);
           return;
         }
 
         // Boundary not found yet in currently loaded DOM items -> scroll to load more
-        console.log(`[YTMC Sync] Watermark not found yet in ${parsedItems.length} loaded items. Scrolling...`);
         if (note) {
           note.textContent = `Scanning history... Loaded ${parsedItems.length} songs. Looking for sync boundary...`;
         }
@@ -888,12 +880,11 @@
 
           if (fallbackBoundary >= 0) {
             const newTracks = parsedItems.slice(0, fallbackBoundary).map(p => p.track);
-            console.log(`[YTMC Sync] Fallback boundary resolved at index ${fallbackBoundary}. Importing ${newTracks.length} new tracks.`);
             stopAndSaveHistory(true, fallbackBoundary === 0 ? 'Already up to date' : 'Sync complete', newTracks, parsedItems);
             return;
           }
+
         } catch (e) {
-          console.warn('[YTMC Sync] Fallback check error:', e);
         }
       }
 
@@ -920,7 +911,6 @@
         });
 
         if (scannedTracks.length >= MAX_HISTORY_SCAN_ITEMS) {
-          console.log(`[YTMC Content] Reached history scan batch cap (${MAX_HISTORY_SCAN_ITEMS}). Stopping.`);
           stopAndSaveHistory(true, 'Completed', scannedTracks, parsedItems);
           return;
         }
@@ -941,9 +931,10 @@
 
       const currentItemElements = document.querySelectorAll('ytmusic-responsive-list-item-renderer');
       if (currentItemElements.length === beforeCount) {
+        // The scroll did not make YouTube append more rows, so the end of the
+        // list is (probably) reached.
         idleScrollCount++;
         if (idleScrollCount >= 4) {
-          console.log('[YTMC Content] End of history reached after 4 idle scroll checks.');
           if (hasWatermark) {
             const allTracks = parsedItems.map(p => p.track);
             stopAndSaveHistory(true, 'Full history scanned', allTracks, parsedItems);
@@ -962,7 +953,9 @@
   }
 
   function stopAndSaveHistory(autoCompleted, reason = '', newTracks = null, allParsed = null) {
-    if (!isScanning) return;
+    if (!isScanning) {
+      return;
+    }
     isScanning = false;
     clearInterval(scanInterval);
     scanInterval = null;
@@ -1055,13 +1048,13 @@
       }
     });
 
-    extBrowser.runtime.sendMessage({
+    sendRuntimeMessage({
       type: 'IMPORT_HISTORY_TRACKS',
       payload: {
         tracks: tracksToImport,
         newSyncState
       }
-    }, (response) => {
+    }).then((response) => {
       const res = response && response.data;
       const importedCount = (res && typeof res.importedCount === 'number') ? res.importedCount : tracksToImport.length;
       const uniqueCount = (res && typeof res.uniqueSongs === 'number') ? res.uniqueSongs : uniqueSet.size;
@@ -1095,6 +1088,16 @@
         const span = startBtn.querySelector('span');
         if (span) span.textContent = '▶ Start Sync';
       }
+      if (spinner) spinner.style.display = 'none';
+    }).catch((err) => {
+      sendMessageIgnoringReply({
+        type: 'DEBUG_LOG',
+        tag: 'SCANNER_ERR',
+        message: 'History import failed: ' + (err && err.message ? err.message : String(err))
+      });
+      if (note) note.textContent = `Sync failed: ${err && err.message ? err.message : String(err)}`;
+      if (countEl) countEl.textContent = '0';
+      if (startBtn) startBtn.disabled = false;
       if (spinner) spinner.style.display = 'none';
     });
   }
@@ -1140,13 +1143,15 @@
       }
 
       if (coversToBackfill.length > 0) {
-        extBrowser.runtime.sendMessage({
+        sendRuntimeMessage({
           type: 'BACKFILL_ALBUM_COVERS',
           payload: { covers: coversToBackfill }
-        }, (res) => {
+        }).then((res) => {
           if (res && res.status === 'ok' && res.data && res.data.updated > 0) {
             console.log(`[YTMC Content] Successfully backfilled ${res.data.updated} album covers from history page.`);
           }
+        }).catch(() => {
+          // Backfill is opportunistic; a failure here must not stop the harvest.
         });
       }
     } catch (_) {}
@@ -1255,10 +1260,9 @@
 
     if (message.type === 'START_HISTORY_SCAN') {
       const forceRescan = Boolean(message.forceRescan);
-      console.log('[YTMC Content] Received START_HISTORY_SCAN. forceRescan =', forceRescan);
       if (!isHistoryPage()) {
         extBrowser.storage.local.set({ pendingAutostart: { time: Date.now(), forceRescan } });
-        window.location.href = 'https://music.youtube.com/history';
+        window.location.href = YOUTUBE_MUSIC_HISTORY_URL;
       } else {
         injectHistoryScannerOverlay();
         startHistoryScan(forceRescan);

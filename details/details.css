@@ -640,6 +640,14 @@ body {
   display: block;
 }
 
+.album-tracks-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
 .tracks-list-grid {
   display: flex;
   flex-wrap: wrap;

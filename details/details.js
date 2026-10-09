@@ -7,8 +7,11 @@
 import { createMatchIndex, matchTrackPlayCountWithIndex } from '../background/scoring.js';
 import { makeAlbumKey } from '../background/storage.js';
 import { thumbnailCache } from '../background/thumbnails.js';
+import '../shared/messaging.js';
 
 const extBrowser = typeof browser !== 'undefined' ? browser : chrome;
+
+const { sendRuntimeMessage, sendTabMessage } = globalThis.YTMCMessaging;
 
 const YOUTUBE_MUSIC_HISTORY_URL = 'https://music.youtube.com/history';
 
@@ -137,18 +140,12 @@ function loadStatsDebounced(delay = 200) {
 
 async function loadStats() {
   try {
-    extBrowser.runtime.sendMessage({ type: 'GET_STATS' }, (response) => {
-      if (extBrowser.runtime.lastError) {
-        console.warn('[Details] Background communication error:', extBrowser.runtime.lastError);
-        fetchStatsDirectlyFromStorage();
-        return;
-      }
-      if (response && response.status === 'ok') {
-        renderStats(response.data);
-      } else {
-        fetchStatsDirectlyFromStorage();
-      }
-    });
+    const response = await sendRuntimeMessage({ type: 'GET_STATS' });
+    if (response && response.status === 'ok') {
+      renderStats(response.data);
+    } else {
+      fetchStatsDirectlyFromStorage();
+    }
   } catch (err) {
     console.error('[Details] Error requesting stats:', err);
     fetchStatsDirectlyFromStorage();
@@ -195,15 +192,6 @@ async function fetchStatsDirectlyFromStorage() {
   }
 }
 
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 function renderStats(stats) {
   if (!stats) return;
 
@@ -237,7 +225,6 @@ function renderStats(stats) {
   if (elements.completedAlbumsStat) {
     elements.completedAlbumsStat.textContent = (stats.completedAlbumsCount || 0).toLocaleString();
   }
-
 
   // Render Albums Breakdown List
   currentTopAlbums = (stats.topAlbums || []).slice(0, 3);
@@ -276,7 +263,9 @@ function updateCardInPlace(card, album, idx) {
 
   const cleanArtistName = (album.artist || '').split('•')[0].trim();
   const hasDistinctArtist = cleanArtistName && cleanArtistName.toLowerCase() !== (album.album || '').toLowerCase();
-  const artistSubtitle = hasDistinctArtist ? `${escapeHtml(cleanArtistName)} • ` : '';
+  // No escaping needed: this is written through textContent below, where the
+  // browser escapes by construction. Escaping here would show "&amp;" literally.
+  const artistSubtitle = hasDistinctArtist ? `${cleanArtistName} • ` : '';
 
   // Update status pill
   const pill = card.querySelector('.album-status-pill');
@@ -347,7 +336,7 @@ function renderTrackChips(tracksContainer, currentAlbum) {
   // (and a re-normalization of every key) per rendered chip.
   const matchIndex = createMatchIndex(listenedObj);
 
-  tracksContainer.innerHTML = '';
+  tracksContainer.replaceChildren();
 
   const header = tracksContainer.parentElement ? tracksContainer.parentElement.querySelector('.album-tracks-header') : null;
   if (header) {
@@ -359,33 +348,37 @@ function renderTrackChips(tracksContainer, currentAlbum) {
     }
   }
 
+  // Track titles come from YouTube Music, so the chips are built from nodes:
+  // addons-linter reports every innerHTML write as UNSAFE_VAR_ASSIGNMENT, and
+  // textContent removes any chance of a title injecting markup.
+  const addChip = (title, count, played) => {
+    const chip = document.createElement('span');
+    chip.className = played ? 'track-chip listened' : 'track-chip unplayed';
+
+    const label = document.createElement('span');
+    label.textContent = title;
+
+    const countEl = document.createElement('span');
+    countEl.className = 'track-chip-count';
+    countEl.textContent = `${count}x`;
+
+    chip.appendChild(label);
+    chip.appendChild(document.createTextNode(' '));
+    chip.appendChild(countEl);
+    tracksContainer.appendChild(chip);
+  };
+
   if (hasAllTracks) {
     currentAlbum.allTracks.forEach(title => {
       const count = matchTrackPlayCountWithIndex(title, matchIndex);
-      const chip = document.createElement('span');
-      if (count > 0) {
-        chip.className = 'track-chip listened';
-        chip.innerHTML = `<span>${escapeHtml(title)}</span> <span class="track-chip-count">${count}x</span>`;
-      } else {
-        chip.className = 'track-chip unplayed';
-        chip.innerHTML = `<span>${escapeHtml(title)}</span> <span class="track-chip-count">0x</span>`;
-      }
-      tracksContainer.appendChild(chip);
+      addChip(title, count, count > 0);
     });
   } else {
     const entries = Object.entries(listenedObj);
     if (entries.length > 0) {
-      entries.forEach(([title, count]) => {
-        const chip = document.createElement('span');
-        chip.className = 'track-chip listened';
-        chip.innerHTML = `<span>${escapeHtml(title)}</span> <span class="track-chip-count">${count}x</span>`;
-        tracksContainer.appendChild(chip);
-      });
+      entries.forEach(([title, count]) => addChip(title, count, true));
     } else {
-      const chip = document.createElement('span');
-      chip.className = 'track-chip listened';
-      chip.innerHTML = `<span>${escapeHtml(currentAlbum.album)}</span> <span class="track-chip-count">${currentAlbum.playCount || 1}x</span>`;
-      tracksContainer.appendChild(chip);
+      addChip(currentAlbum.album, currentAlbum.playCount || 1, true);
     }
   }
 }
@@ -410,10 +403,10 @@ function wireAlbumCardEvents(card, album, cardId) {
       // If full album tracklist has not been retrieved and albumBrowseId exists, fetch it quietly in the background
       const hasAllTracks = Array.isArray(currentAlbum.allTracks) && currentAlbum.allTracks.length > 0;
       if (!hasAllTracks && currentAlbum.albumBrowseId) {
-        extBrowser.runtime.sendMessage({
+        sendRuntimeMessage({
           type: 'GET_ALBUM_DETAILS',
           payload: { album: currentAlbum.album, artist: currentAlbum.artist }
-        }, (res) => {
+        }).then((res) => {
           if (res && res.status === 'ok' && res.data) {
             const fullAlbum = res.data;
             card._albumData = fullAlbum;
@@ -439,6 +432,8 @@ function wireAlbumCardEvents(card, album, cardId) {
             }
             loadStatsDebounced(100);
           }
+        }).catch((err) => {
+          console.warn('[Details] Could not load full tracklist:', err);
         });
       }
     }
@@ -460,43 +455,97 @@ function buildAlbumCard(album, idx) {
 
   const cleanArtistName = (album.artist || '').split('•')[0].trim();
   const hasDistinctArtist = cleanArtistName && cleanArtistName.toLowerCase() !== (album.album || '').toLowerCase();
-  const artistSubtitle = hasDistinctArtist ? `${escapeHtml(cleanArtistName)} • ` : '';
+  const artistSubtitle = hasDistinctArtist ? `${cleanArtistName} • ` : '';
 
   const cardId = `album-card-${idx}`;
   const artId = `album-art-${idx}`;
 
-  const badgeHtml = `${isCompleted ? '★' : '💿'}`;
-  const starHtml = isCompleted ? '<span class="album-cover-star" title="Completed Album">★</span>' : '';
+  const badgeGlyph = isCompleted ? '★' : '💿';
 
-  const artworkHtml = `<div class="album-artwork-container" id="${artId}">
-        <div class="album-icon-badge ${isCompleted ? 'completed' : ''}">${badgeHtml}</div>
-        ${starHtml}
-      </div>`;
+  // Built as nodes instead of an innerHTML template: album and artist names come
+  // from YouTube Music, and addons-linter reports every innerHTML write as
+  // UNSAFE_VAR_ASSIGNMENT. textContent also makes it impossible for a title to
+  // terminate the `title` attribute early.
+  const artwork = document.createElement('div');
+  artwork.className = 'album-artwork-container';
+  artwork.id = artId;
 
-  card.innerHTML = `
-    <div class="album-card-top">
-      <div class="album-card-left">
-        ${artworkHtml}
-        <div class="album-meta-text">
-          <div class="album-name" title="${escapeHtml(album.album)}">${escapeHtml(album.album)}</div>
-          <div class="album-artist" title="${escapeHtml(cleanArtistName || album.album)}">${artistSubtitle}${album.playCount} total ${album.playCount === 1 ? 'play' : 'plays'}</div>
-        </div>
-      </div>
-      <div class="album-card-right">
-        <span class="album-status-pill ${isCompleted ? 'completed' : ''}">${statusText}</span>
-        <button type="button" class="btn-toggle-album-tracks" data-index="${idx}">
-          View Tracks
-        </button>
-      </div>
-    </div>
-    <div class="album-card-expanded" id="${cardId}">
-      <div class="album-tracks-header" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-bottom: 6px;">
-        ${album.allTracks && album.allTracks.length > 0 ? `Album tracks (${album.allTracks.length}):` : `Songs played (${uniqueTracks}):`}
-      </div>
-      <div class="tracks-list-grid" id="${cardId}-tracks">
-      </div>
-    </div>
-  `;
+  const badge = document.createElement('div');
+  badge.className = isCompleted ? 'album-icon-badge completed' : 'album-icon-badge';
+  badge.textContent = badgeGlyph;
+  artwork.appendChild(badge);
+
+  if (isCompleted) {
+    const star = document.createElement('span');
+    star.className = 'album-cover-star';
+    star.title = 'Completed Album';
+    star.textContent = '★';
+    artwork.appendChild(star);
+  }
+
+  const metaText = document.createElement('div');
+  metaText.className = 'album-meta-text';
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'album-name';
+  nameEl.textContent = album.album || '';
+  nameEl.title = album.album || '';
+  metaText.appendChild(nameEl);
+
+  const artistEl = document.createElement('div');
+  artistEl.className = 'album-artist';
+  artistEl.title = cleanArtistName || album.album || '';
+  artistEl.textContent = `${artistSubtitle}${album.playCount} total ${album.playCount === 1 ? 'play' : 'plays'}`;
+  metaText.appendChild(artistEl);
+
+  const cardLeft = document.createElement('div');
+  cardLeft.className = 'album-card-left';
+  cardLeft.appendChild(artwork);
+  cardLeft.appendChild(metaText);
+
+  const statusPill = document.createElement('span');
+  statusPill.className = isCompleted ? 'album-status-pill completed' : 'album-status-pill';
+  statusPill.textContent = statusText;
+
+  const toggleBtn = document.createElement('button');
+  toggleBtn.type = 'button';
+  toggleBtn.className = 'btn-toggle-album-tracks';
+  toggleBtn.dataset.index = String(idx);
+  toggleBtn.textContent = 'View Tracks';
+
+  const cardRight = document.createElement('div');
+  cardRight.className = 'album-card-right';
+  cardRight.appendChild(statusPill);
+  cardRight.appendChild(toggleBtn);
+
+  const cardTop = document.createElement('div');
+  cardTop.className = 'album-card-top';
+  cardTop.appendChild(cardLeft);
+  cardTop.appendChild(cardRight);
+
+  const expanded = document.createElement('div');
+  expanded.className = 'album-card-expanded';
+  expanded.id = cardId;
+
+  const tracksHeader = document.createElement('div');
+  tracksHeader.className = 'album-tracks-header';
+  // The four properties this element used to carry inline now live in
+  // details.css. Inline styles are legal here (the MV3 default CSP restricts
+  // script-src and object-src, not style-src), so this is tidying, not a fix.
+  tracksHeader.textContent =
+    album.allTracks && album.allTracks.length > 0
+      ? `Album tracks (${album.allTracks.length}):`
+      : `Songs played (${uniqueTracks}):`;
+
+  const tracksGrid = document.createElement('div');
+  tracksGrid.className = 'tracks-list-grid';
+  tracksGrid.id = `${cardId}-tracks`;
+
+  expanded.appendChild(tracksHeader);
+  expanded.appendChild(tracksGrid);
+
+  card.appendChild(cardTop);
+  card.appendChild(expanded);
 
   wireAlbumCardEvents(card, album, cardId);
 
@@ -536,7 +585,11 @@ function renderAlbumsBreakdown() {
   }
 
   if (!albums || albums.length === 0) {
-    elements.albumsBreakdownList.innerHTML = '<div class="empty-state-card">No albums tracked yet. Sync your listening history or play an album to get started.</div>';
+    elements.albumsBreakdownList.textContent = '';
+    const emptyCard = document.createElement('div');
+    emptyCard.className = 'empty-state-card';
+    emptyCard.textContent = 'No albums tracked yet. Sync your listening history or play an album to get started.';
+    elements.albumsBreakdownList.appendChild(emptyCard);
     return;
   }
 
@@ -554,7 +607,7 @@ function renderAlbumsBreakdown() {
   }
 
   // Full re-render when album list or order changes
-  elements.albumsBreakdownList.innerHTML = '';
+  elements.albumsBreakdownList.textContent = '';
   albums.forEach((album, idx) => {
     const card = buildAlbumCard(album, idx);
     elements.albumsBreakdownList.appendChild(card);
@@ -675,23 +728,15 @@ async function fetchAlbumCover(album, idx, cardEl) {
   // Step 3: Request from background script
   let resolvedUrl = null;
   try {
-    const res = await new Promise((resolve) => {
-      extBrowser.runtime.sendMessage({
-        type: 'FETCH_ALBUM_COVER',
-        payload: {
-          album: album.album,
-          artist: album.artist,
-          browseId: album.albumBrowseId
-        }
-      }, (resp) => {
-        if (extBrowser.runtime.lastError) {
-          resolve(null);
-        } else {
-          resolve(resp && resp.status === 'ok' && resp.data && resp.data.coverUrl ? resp.data.coverUrl : null);
-        }
-      });
+    const resp = await sendRuntimeMessage({
+      type: 'FETCH_ALBUM_COVER',
+      payload: {
+        album: album.album,
+        artist: album.artist,
+        browseId: album.albumBrowseId
+      }
     });
-    resolvedUrl = res;
+    resolvedUrl = resp && resp.status === 'ok' && resp.data && resp.data.coverUrl ? resp.data.coverUrl : null;
   } catch (_) {}
 
   if (resolvedUrl) {
@@ -843,28 +888,28 @@ async function executeDataWipe() {
 
   try {
     // 1. Send reset message to background service
-    extBrowser.runtime.sendMessage({ type: 'RESET_STATS' }, async (response) => {
-      // Direct storage reset as foolproof fallback
-      await extBrowser.storage.local.clear();
-      await extBrowser.storage.local.set(emptyState);
+    await sendRuntimeMessage({ type: 'RESET_STATS' });
 
-      // 2. Clear local media cache
-      try {
-        await thumbnailCache.clearThumbnailCache();
-      } catch (_) {}
-      refreshThumbnailCacheStats();
+    // Direct storage reset as foolproof fallback
+    await extBrowser.storage.local.clear();
+    await extBrowser.storage.local.set(emptyState);
 
-      // 3. Return UI to step 0
-      setWipeStep(0);
+    // 2. Clear local media cache
+    try {
+      await thumbnailCache.clearThumbnailCache();
+    } catch (_) {}
+    refreshThumbnailCacheStats();
 
-      // 4. Update sync status UI
-      renderHistorySyncStatus(null);
-      renderScanProgress(null);
-      showSuccessAlert();
+    // 3. Return UI to step 0
+    setWipeStep(0);
 
-      // 5. Reload stats immediately
-      loadStats();
-    });
+    // 4. Update sync status UI
+    renderHistorySyncStatus(null);
+    renderScanProgress(null);
+    showSuccessAlert();
+
+    // 5. Reload stats immediately
+    loadStats();
   } catch (err) {
     console.error('[Details] Error during data wipe:', err);
     // Direct fallback
@@ -1129,30 +1174,29 @@ function setupDataBackupWorkflow() {
     elements.exportLibraryJsonBtn.addEventListener('click', async () => {
       try {
         elements.exportLibraryJsonBtn.disabled = true;
-        extBrowser.runtime.sendMessage({ type: 'EXPORT_DATA_V2' }, (response) => {
-          elements.exportLibraryJsonBtn.disabled = false;
-          if (extBrowser.runtime.lastError || !response || response.status !== 'ok') {
-            showImportExportMessage('Export failed: ' + (extBrowser.runtime.lastError?.message || response?.error), true);
-            return;
-          }
-          // Blob + object URL instead of a data: URL. A data: URL caps out at a
-          // couple of MB (and encodeURIComponent nearly doubles the size), so a
-          // real library export simply failed to download.
-          const json = JSON.stringify(response.data, null, 2);
-          const blob = new Blob([json], { type: 'application/json' });
-          const objectUrl = URL.createObjectURL(blob);
-          const dateStr = new Date().toISOString().split('T')[0];
-          const downloadAnchor = document.createElement('a');
-          downloadAnchor.href = objectUrl;
-          downloadAnchor.download = `ytmusic-counter-export-${dateStr}.json`;
-          document.body.appendChild(downloadAnchor);
-          downloadAnchor.click();
-          downloadAnchor.remove();
-          // Revoked on the next tick: revoking synchronously can cancel the
-          // download in some builds.
-          setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
-          showImportExportMessage('Library exported successfully!');
-        });
+        const response = await sendRuntimeMessage({ type: 'EXPORT_DATA_V2' });
+        elements.exportLibraryJsonBtn.disabled = false;
+        if (!response || response.status !== 'ok') {
+          showImportExportMessage('Export failed: ' + (response && response.error), true);
+          return;
+        }
+        // Blob + object URL instead of a data: URL. A data: URL caps out at a
+        // couple of MB (and encodeURIComponent nearly doubles the size), so a
+        // real library export simply failed to download.
+        const json = JSON.stringify(response.data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const objectUrl = URL.createObjectURL(blob);
+        const dateStr = new Date().toISOString().split('T')[0];
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.href = objectUrl;
+        downloadAnchor.download = `ytmusic-counter-export-${dateStr}.json`;
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        // Revoked on the next tick: revoking synchronously can cancel the
+        // download in some builds.
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+        showImportExportMessage('Library exported successfully!');
       } catch (err) {
         elements.exportLibraryJsonBtn.disabled = false;
         showImportExportMessage('Export error: ' + err.message, true);
@@ -1169,15 +1213,14 @@ function setupDataBackupWorkflow() {
       reader.onload = async (event) => {
         try {
           const parsed = JSON.parse(event.target.result);
-          extBrowser.runtime.sendMessage({ type: 'IMPORT_DATA_V2', payload: parsed }, (res) => {
-            if (extBrowser.runtime.lastError || !res || res.status !== 'ok') {
-              showImportExportMessage('Import error: ' + (extBrowser.runtime.lastError?.message || res?.error), true);
-              return;
-            }
-            const { songsCount, artistsCount, albumsCount } = res.data;
-            showImportExportMessage(`Imported ${songsCount} songs, ${artistsCount} artists, ${albumsCount} albums!`);
-            loadStats();
-          });
+          const res = await sendRuntimeMessage({ type: 'IMPORT_DATA_V2', payload: parsed });
+          if (!res || res.status !== 'ok') {
+            showImportExportMessage('Import error: ' + (res && res.error), true);
+            return;
+          }
+          const { songsCount, artistsCount, albumsCount } = res.data;
+          showImportExportMessage(`Imported ${songsCount} songs, ${artistsCount} artists, ${albumsCount} albums!`);
+          loadStats();
         } catch (parseErr) {
           showImportExportMessage('Invalid JSON format: ' + parseErr.message, true);
         } finally {
@@ -1283,17 +1326,16 @@ function setupDebugSection() {
 
         const targetTab = tabs[0];
         debugLog('PING', `Sending PING_CONTENT_SCRIPT to tab ${targetTab.id}...`);
-        extBrowser.tabs.sendMessage(targetTab.id, { type: 'PING_CONTENT_SCRIPT' }, (response) => {
-          if (extBrowser.runtime.lastError) {
-            debugLog('PING_ERROR', 'Could not reach content script (content script might not be injected or page still loading):', extBrowser.runtime.lastError.message);
-            if (elements.debugTabStatus) elements.debugTabStatus.textContent = 'YT Tab: Unreachable (Reload tab)';
-            return;
-          }
+        try {
+          const response = await sendTabMessage(targetTab.id, { type: 'PING_CONTENT_SCRIPT' });
           debugLog('PING_SUCCESS', 'Received response from content script:', response);
           if (elements.debugTabStatus) {
-            elements.debugTabStatus.textContent = `YT Tab: Connected (${response.itemsCount || 0} items)`;
+            elements.debugTabStatus.textContent = `YT Tab: Connected (${(response && response.itemsCount) || 0} items)`;
           }
-        });
+        } catch (pingErr) {
+          debugLog('PING_ERROR', 'Could not reach content script (content script might not be injected or page still loading):', pingErr.message || pingErr);
+          if (elements.debugTabStatus) elements.debugTabStatus.textContent = 'YT Tab: Unreachable (Reload tab)';
+        }
       } catch (err) {
         debugLog('PING_EXCEPTION', 'Error during ping:', err.message || err);
       }
@@ -1372,7 +1414,7 @@ function setupEnrichmentControls() {
         return;
       }
       try {
-        const response = await extBrowser.runtime.sendMessage({ type: 'SET_ENRICHMENT_CONFIG', payload: { minUniqueTracks: value } });
+        const response = await sendRuntimeMessage({ type: 'SET_ENRICHMENT_CONFIG', payload: { minUniqueTracks: value } });
         if (response && response.status === 'ok') {
           elements.enrichmentMinTracksInput.value = response.data.minUniqueTracks;
           debugLog('ENRICH', `Batch-fetch threshold set to ${response.data.minUniqueTracks} unique track(s).`);
@@ -1403,7 +1445,7 @@ function setupEnrichmentControls() {
       };
 
       try {
-        const response = await extBrowser.runtime.sendMessage({ type: 'FETCH_MISSING_TRACKLISTS', payload: { force: true } });
+        const response = await sendRuntimeMessage({ type: 'FETCH_MISSING_TRACKLISTS', payload: { force: true } });
         if (response && response.status === 'ok') {
           const r = response.data;
           if (r && r.queued) {
@@ -1437,7 +1479,7 @@ function setupEnrichmentControls() {
  */
 async function loadEnrichmentConfig() {
   try {
-    const response = await extBrowser.runtime.sendMessage({ type: 'GET_ENRICHMENT_CONFIG' });
+    const response = await sendRuntimeMessage({ type: 'GET_ENRICHMENT_CONFIG' });
     if (response && response.status === 'ok' && elements.enrichmentMinTracksInput) {
       elements.enrichmentMinTracksInput.value = response.data.minUniqueTracks;
     }
@@ -1495,12 +1537,14 @@ function setupHistoryScannerLauncher() {
         }
         
         // Try messaging content script directly in case it is already on the page and didn't reload
-        setTimeout(() => {
-          extBrowser.tabs.sendMessage(targetTab.id, { type: 'START_HISTORY_SCAN', forceRescan: false }, (res) => {
-            if (!extBrowser.runtime.lastError) {
-              extBrowser.storage.local.remove('pendingAutostart'); // Handled immediately
-            }
-          });
+        setTimeout(async () => {
+          try {
+            await sendTabMessage(targetTab.id, { type: 'START_HISTORY_SCAN', forceRescan: false });
+            await extBrowser.storage.local.remove('pendingAutostart'); // Handled immediately
+          } catch (_) {
+            // The tab navigated away and the content script is gone; it will pick
+            // the stored pendingAutostart up on the history page instead.
+          }
         }, 500);
       } else {
         debugLog('LAUNCHER', `No existing tab found. Creating new tab with ${historyUrl}...`);

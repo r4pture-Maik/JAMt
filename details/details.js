@@ -16,6 +16,9 @@ const { sendRuntimeMessage, sendTabMessage } = globalThis.YTMCMessaging;
 
 const YOUTUBE_MUSIC_HISTORY_URL = 'https://music.youtube.com/history';
 
+const ABOUT_CONTACT_EMAIL = 'm4ikh@proton.me';
+const ABOUT_REPO_FALLBACK_URL = 'https://github.com/r4pture-Maik/ytmusic-counter';
+
 // DOM Elements Cache
 const elements = {
   // Navigation
@@ -23,6 +26,16 @@ const elements = {
   tabBtnConfig: document.getElementById('tabBtnConfig'),
   detailsPanel: document.getElementById('detailsPanel'),
   configPanel: document.getElementById('configPanel'),
+  tabBtnAbout: document.getElementById('tabBtnAbout'),
+  aboutPanel: document.getElementById('aboutPanel'),
+
+  // About Panel
+  aboutVersion: document.getElementById('aboutVersion'),
+  aboutChangelogVersion: document.getElementById('aboutChangelogVersion'),
+  aboutEmailLink: document.getElementById('aboutEmailLink'),
+  aboutEmailValue: document.getElementById('aboutEmailValue'),
+  aboutIssuesLink: document.getElementById('aboutIssuesLink'),
+  aboutRepoLink: document.getElementById('aboutRepoLink'),
 
   // Stats in Details Panel
   totalSongsListened: document.getElementById('totalSongsListened'),
@@ -108,7 +121,8 @@ let currentAllAlbums = [];
 function setupTabs() {
   const tabs = [
     { btn: elements.tabBtnDetails, panel: elements.detailsPanel },
-    { btn: elements.tabBtnConfig, panel: elements.configPanel }
+    { btn: elements.tabBtnConfig, panel: elements.configPanel },
+    { btn: elements.tabBtnAbout, panel: elements.aboutPanel }
   ];
 
   tabs.forEach(({ btn, panel }) => {
@@ -125,6 +139,33 @@ function setupTabs() {
       panel.classList.add('active');
     });
   });
+}
+
+/* ==========================================================================
+   About Panel
+   ========================================================================== */
+function setupAboutPanel() {
+  // The manifest is the single source of truth for the version, so the About
+  // page can never drift out of sync with what actually shipped.
+  const manifest = extBrowser.runtime?.getManifest?.();
+  const version = manifest?.version;
+  if (version) {
+    if (elements.aboutVersion) elements.aboutVersion.textContent = version;
+    if (elements.aboutChangelogVersion) elements.aboutChangelogVersion.textContent = version;
+  }
+
+  const repoUrl = manifest?.homepage_url || ABOUT_REPO_FALLBACK_URL;
+  // Strip a trailing slash and any trailing "#readme" so the issues URL is clean.
+  const repoBase = repoUrl.replace(/\/+$/, '').replace(/#.*$/, '');
+
+  if (elements.aboutRepoLink) elements.aboutRepoLink.href = repoBase;
+  if (elements.aboutIssuesLink) elements.aboutIssuesLink.href = `${repoBase}/issues`;
+
+  if (elements.aboutEmailLink) {
+    elements.aboutEmailLink.href = `mailto:${ABOUT_CONTACT_EMAIL}`;
+    elements.aboutEmailLink.removeAttribute('target');
+  }
+  if (elements.aboutEmailValue) elements.aboutEmailValue.textContent = ABOUT_CONTACT_EMAIL;
 }
 
 /* ==========================================================================
@@ -1388,6 +1429,7 @@ function setupDataBackupWorkflow() {
 // Initialization on DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
   setupTabs();
+  setupAboutPanel();
   setupWipeDataWorkflow();
   setupHistoryScannerLauncher();
   setupThumbnailCacheSettings();

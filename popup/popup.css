@@ -73,11 +73,6 @@ body {
   letter-spacing: -0.2px;
 }
 
-.version {
-  font-size: 10px;
-  color: var(--text-muted);
-}
-
 .header-actions {
   display: flex;
   align-items: center;

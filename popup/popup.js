@@ -1,5 +1,5 @@
 /**
- * YTMusic Counter - Popup Script
+ * JAMt - Popup Script
  * Handles real-time grouped stats rendering for Songs, Artists, and Completed Albums.
  */
 

@@ -1,5 +1,5 @@
 /**
- * YTMusic Counter - Scoring & Album Completion Engine
+ * JAMt - Scoring & Album Completion Engine
  * Implements fuzzy matching, title normalization, and resilient album completion algorithms.
  */
 

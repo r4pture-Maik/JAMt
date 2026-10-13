@@ -1,5 +1,5 @@
 /**
- * YTMusic Counter - Duration Tracking Module
+ * JAMt - Duration Tracking Module
  * Accumulates continuous playback time across global metrics, songs, artists, and albums.
  */
 

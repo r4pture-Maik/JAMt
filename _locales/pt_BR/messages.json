@@ -1,12 +1,12 @@
 {
   "actionTitle": {
-    "message": "YTMusic Counter"
+    "message": "JAMt"
   },
   "extDescription": {
     "message": "Registra e conta as faixas que você reproduz e suas estatísticas de escuta no YouTube Music."
   },
   "extName": {
-    "message": "YTMusic Counter"
+    "message": "JAMt"
   },
   "msg_about_blurb": {
     "message": "$1 mantém um registro contínuo de tudo o que você reproduz no YouTube Music. Ele conta cada faixa que você ouve, acompanha as reproduções por música e por artista, identifica álbuns concluídos e mede o seu tempo de escuta. Tudo permanece no seu navegador."
@@ -369,7 +369,7 @@
     "message": "Falha na importação: o arquivo não é um objeto JSON."
   },
   "msg_import_error_unrecognized_format": {
-    "message": "Falha na importação: este não é um backup reconhecido do YTMusic Counter."
+    "message": "Falha na importação: este não é um backup reconhecido do JAMt."
   },
   "msg_import_invalid_json": {
     "message": "Formato JSON inválido: $1"

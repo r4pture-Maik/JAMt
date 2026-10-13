@@ -1,5 +1,5 @@
 /**
- * YTMusic Counter - Content Script
+ * JAMt - Content Script
  * Tracks song plays, updates per-song counter badge in the player bar,
  * and reports playback to the background worker.
  */
@@ -176,7 +176,7 @@
     applyScannerOverlayStrings();
   }
 
-  console.log('[YTMusic Counter] Content script initialized.');
+  console.log('[JAMt] Content script initialized.');
 
   let lastTrackKey = null;
   let currentSongPlays = 0;
@@ -450,11 +450,11 @@
     sendRuntimeMessage({ type: 'TRACK_PLAYED', payload: track }).then((response) => {
       if (response && response.status === 'ok') {
         currentSongPlays = response.data.songPlays;
-        console.log(`[YTMusic Counter] "${track.title}" play registered! Total plays for this song: ${currentSongPlays}`);
+        console.log(`[JAMt] "${track.title}" play registered! Total plays for this song: ${currentSongPlays}`);
         updateSongBadge(currentSongPlays, true);
       }
     }).catch((err) => {
-      console.warn('[YTMusic Counter] Messaging error:', err);
+      console.warn('[JAMt] Messaging error:', err);
     });
   }
 

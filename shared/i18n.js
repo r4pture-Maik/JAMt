@@ -1,5 +1,5 @@
 /**
- * YTMusic Counter - Localization runtime
+ * JAMt - Localization runtime
  *
  * Loaded as a classic script in the popup and (via a side-effect ESM import) in
  * the Details page, the content script and the background script, for the same

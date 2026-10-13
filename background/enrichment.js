@@ -1,5 +1,5 @@
 /**
- * YTMusic Counter - Album Metadata Enrichment Policy
+ * JAMt - Album Metadata Enrichment Policy
  *
  * Pure, dependency-free logic behind the album tracklist enrichment pipeline.
  * Everything here is unit-testable in Node (see tests/enrichment.test.js) and

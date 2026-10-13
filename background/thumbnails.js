@@ -1,5 +1,5 @@
 /**
- * YTMusic Counter - Lightweight Local Thumbnail Database & Cache
+ * JAMt - Lightweight Local Thumbnail Database & Cache
  * Uses IndexedDB to store downscaled (128x128 WebP) album covers.
  * Provides in-memory Object URL caching for instant, zero-flicker UI painting.
  * Native ES module with globalThis fallback.

@@ -5,7 +5,7 @@
     "placeholders": {
       "brand": {
         "content": "$1",
-        "example": "YTMusic Counter"
+        "example": "JAMt"
       }
     }
   },
@@ -391,7 +391,7 @@
     "description": "Sub-heading under the About title. Written in the first person by the extension's author; keep the first-person voice."
   },
   "msg_about_app_name": {
-    "message": "YTMusic Counter",
+    "message": "JAMt",
     "description": "The extension's brand name as shown in the nav bar and the About card. AD-7: this is a brand and MUST be byte-identical in every locale - reproduce it exactly, do not translate, transliterate, localize or add diacritics."
   },
   "msg_about_version_label": {
@@ -404,7 +404,7 @@
     "placeholders": {
       "brand": {
         "content": "$1",
-        "example": "YTMusic Counter"
+        "example": "JAMt"
       }
     }
   },

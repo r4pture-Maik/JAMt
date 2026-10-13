@@ -1,8 +1,6 @@
 # Privacy Policy for YTMusic Counter
 
-> **Date:** 2026-09-26
-
-Last updated: October 2026
+Last updated: 2026-10-13
 
 **YTMusic Counter** is built on a privacy-first architecture. It exists to give you personal insight into your own YouTube Music listening habits, and for no other purpose. There is no server component, no account, and no backend. Nobody — including the author — can see your data.
 
@@ -12,7 +10,7 @@ Last updated: October 2026
 
 * **No Data Collection**: The extension has no mechanism to collect your name, email address, IP address, browsing history, or any other identifying information. We do not operate servers and have no way to receive data.
 * **No Analytics, Telemetry, or Tracking**: There is no analytics SDK, no telemetry endpoint, no crash reporting, no A/B testing, and no fingerprinting anywhere in the codebase.
-* **On-Device Storage Only**: All play counts, album completions, listening durations, cached cover art, and settings stay in your browser's local storage (`browser.storage.local`) and a local IndexedDB database. They are never uploaded anywhere.
+* **On-Device Storage Only**: All play counts, album completions, listening durations, cached cover art, and settings stay in your browser's local storage (`browser.storage.local`) and a local IndexedDB database. They are never uploaded anywhere. Your chosen display language (a short code such as `fr`) is the one exception: it is kept in `storage.sync` so the browser can carry it across your devices if you use browser sync; that sync is performed by your browser under its own privacy policy, never by the extension, and the value contains no listening data. The Details page also keeps one on/off preference (whether to show the debug panel) in the page's own `localStorage`; it holds no listening data.
 * **No Third-Party Services**: The extension communicates only with `music.youtube.com` and Google's own image CDNs. It has no integrations with analytics providers, advertisers, social networks, or any other external company.
 * **No Data Monetization**: Your listening statistics belong to you alone. Nothing is sold, licensed, rented, or shared.
 
@@ -24,7 +22,7 @@ The extension is not fully offline, because reading your play history and loadin
 
 | Destination | Purpose | What is sent |
 | :--- | :--- | :--- |
-| `music.youtube.com` | Read your listening history, look up album tracklists, and search for album metadata. | Standard request data, using your existing signed-in session. No credentials are read, stored, or forwarded by the extension. |
+| `music.youtube.com` | Read your listening history, look up album tracklists, and search for album metadata. | Album identifiers (browse IDs) and, when an album has none, a search query made of the album and artist name, sent to YouTube Music's own `youtubei` API. When a request is made from a YouTube Music tab it carries your existing session cookies, applied by the browser, exactly as the site's own requests do; requests made by the extension's background worker do not ask the browser to include credentials. The extension also reads the public client version/language settings from the page so the request looks like the site's own. No credentials are read, stored, or forwarded by the extension. |
 | `lh3.googleusercontent.com`, `ggpht.com`, `ytimg.com` | Download album cover images so they can be displayed and cached locally. | A plain image request for artwork. |
 
 **What this means in practice:**
@@ -60,13 +58,8 @@ geolocation, or cookies. In particular the extension does **not** request the `h
 browsing history from outside YouTube Music.
 
 It does read your **YouTube Music listening history**, but not through a browser
-permission: it asks YouTube Music itself, over your existing signed-in session,
-and only to build the statistics this extension exists to show. That is the most
-sensitive thing it does, so it is documented in full in the next section.
-
-It does read your **YouTube Music listening history**, but not through a browser
-permission: it asks YouTube Music itself, over your existing signed-in session,
-and only to build the statistics this extension exists to show. That is the most
+permission: it reads the history page that YouTube Music itself shows you, in your
+existing session, and only to build the statistics this extension exists to show. That is the most
 sensitive thing it does, so it is documented in full in the next section.
 
 ---

@@ -1,0 +1,716 @@
+{
+  "actionTitle": {
+    "message": "YTMusic Counter"
+  },
+  "extDescription": {
+    "message": "Traccia e conta i brani riprodotti e le tue statistiche di ascolto su YouTube Music."
+  },
+  "extName": {
+    "message": "YTMusic Counter"
+  },
+  "msg_about_blurb": {
+    "message": "$1 tiene un conteggio cumulativo di tutto ciò che riproduci su YouTube Music. Conta ogni brano che ascolti, tiene il conto delle riproduzioni per singolo brano e per artista, riconosce gli album completati e misura il tuo tempo di ascolto. Tutto resta nel tuo browser."
+  },
+  "msg_about_link_email": {
+    "message": "Scrivimi"
+  },
+  "msg_about_link_report": {
+    "message": "Segnala un problema o richiedi una funzionalità"
+  },
+  "msg_about_link_source": {
+    "message": "Codice sorgente"
+  },
+  "msg_about_made_with": {
+    "message": "Fatto con <3 da $1"
+  },
+  "msg_about_panel_subtitle": {
+    "message": "Tutto su questa estensione e come contattarmi."
+  },
+  "msg_about_panel_title": {
+    "message": "Informazioni"
+  },
+  "msg_about_section_contact": {
+    "message": "Contatti"
+  },
+  "msg_about_version_label": {
+    "message": "Versione"
+  },
+  "msg_about_whats_new": {
+    "message": "Novità della versione"
+  },
+  "msg_album_completed_title": {
+    "message": "Album completato"
+  },
+  "msg_album_cover_alt": {
+    "message": "Copertina dell'album"
+  },
+  "msg_album_hide_tracks": {
+    "message": "Nascondi brani"
+  },
+  "msg_album_played_songs_header": {
+    "message": "Brani riprodotti ($1):"
+  },
+  "msg_album_status_completed": {
+    "message": "★ Completato ($1x)"
+  },
+  "msg_album_status_completed_next": {
+    "message": "★ Completato ($1x) • Prossimo: $2/$3"
+  },
+  "msg_album_status_played_songs_one": {
+    "message": "$1 brano riprodotto"
+  },
+  "msg_album_status_played_songs_other": {
+    "message": "$1 brani riprodotti"
+  },
+  "msg_album_status_progress": {
+    "message": "$1/$2 brani ($3%)"
+  },
+  "msg_album_total_plays_one": {
+    "message": "$1 riproduzione totale"
+  },
+  "msg_album_total_plays_other": {
+    "message": "$1 riproduzioni totali"
+  },
+  "msg_album_tracks_header": {
+    "message": "Brani dell'album ($1):"
+  },
+  "msg_album_view_tracks": {
+    "message": "Mostra brani"
+  },
+  "msg_albums_one": {
+    "message": "$1 album"
+  },
+  "msg_albums_other": {
+    "message": "$1 album"
+  },
+  "msg_artist_unknown": {
+    "message": "Sconosciuto"
+  },
+  "msg_artists_one": {
+    "message": "$1 artista"
+  },
+  "msg_artists_other": {
+    "message": "$1 artisti"
+  },
+  "msg_cache_clear_error": {
+    "message": "Errore durante la cancellazione: $1"
+  },
+  "msg_cache_cleared": {
+    "message": "Cache delle copertine svuotata!"
+  },
+  "msg_cache_covers_one": {
+    "message": "$1 copertina"
+  },
+  "msg_cache_covers_other": {
+    "message": "$1 copertine"
+  },
+  "msg_cache_size_kb": {
+    "message": "$1 KB"
+  },
+  "msg_cache_size_mb": {
+    "message": "$1 MB"
+  },
+  "msg_cache_size_refreshed": {
+    "message": "Dimensione aggiornata"
+  },
+  "msg_completedTimes": {
+    "message": "Completato $1x"
+  },
+  "msg_content_badge_play_one": {
+    "message": "riproduzione"
+  },
+  "msg_content_badge_play_other": {
+    "message": "riproduzioni"
+  },
+  "msg_content_badge_title_one": {
+    "message": "Hai ascoltato questa canzone $1 volta"
+  },
+  "msg_content_badge_title_other": {
+    "message": "Hai ascoltato questa canzone $1 volte"
+  },
+  "msg_content_count_new_play_one": {
+    "message": "$1 nuova riproduzione"
+  },
+  "msg_content_count_new_play_other": {
+    "message": "$1 nuove riproduzioni"
+  },
+  "msg_content_count_play_one": {
+    "message": "$1 riproduzione"
+  },
+  "msg_content_count_play_other": {
+    "message": "$1 riproduzioni"
+  },
+  "msg_content_count_song_one": {
+    "message": "$1 canzone"
+  },
+  "msg_content_count_song_other": {
+    "message": "$1 canzoni"
+  },
+  "msg_content_scan_boundary_progress": {
+    "message": "Scansione della cronologia... Caricati: $1. Ricerca del punto di sincronizzazione..."
+  },
+  "msg_content_scan_checking_since": {
+    "message": "Ricerca di nuove riproduzioni da \"$1\"..."
+  },
+  "msg_content_scan_empty_history": {
+    "message": "Nessun brano trovato in cronologia."
+  },
+  "msg_content_scan_failed": {
+    "message": "Sincronizzazione non riuscita: $1"
+  },
+  "msg_content_scan_saving": {
+    "message": "Salvataggio di $1..."
+  },
+  "msg_content_scan_scanning_history": {
+    "message": "Scansione della cronologia di ascolto..."
+  },
+  "msg_content_scan_success": {
+    "message": "Fatto!"
+  },
+  "msg_content_scan_synced": {
+    "message": "Sincronizzazione completata: $1."
+  },
+  "msg_content_scan_synced_reason": {
+    "message": "Sincronizzazione completata: $1. $2"
+  },
+  "msg_content_scan_up_to_date": {
+    "message": "Tutto aggiornato! Nessuna nuova riproduzione trovata."
+  },
+  "msg_content_scanner_force_rescan": {
+    "message": "Riesegui la scansione dell'intera cronologia dall'inizio"
+  },
+  "msg_content_scanner_metric_label": {
+    "message": "Nuove canzoni sincronizzate"
+  },
+  "msg_content_scanner_minimize": {
+    "message": "Riduci finestra"
+  },
+  "msg_content_scanner_ready": {
+    "message": "Pronto a sincronizzare la cronologia di ascolto."
+  },
+  "msg_content_scanner_restore": {
+    "message": "Ripristina finestra"
+  },
+  "msg_content_scanner_title": {
+    "message": "Sincronizzazione cronologia di ascolto"
+  },
+  "msg_content_scanner_toggle_minimize": {
+    "message": "Fai clic per ridurre"
+  },
+  "msg_count_hour_one": {
+    "message": "$1 ora"
+  },
+  "msg_count_hour_other": {
+    "message": "$1 ore"
+  },
+  "msg_count_minute_one": {
+    "message": "$1 min"
+  },
+  "msg_count_minute_other": {
+    "message": "$1 min"
+  },
+  "msg_count_play_one": {
+    "message": "$1 riproduzione"
+  },
+  "msg_count_play_other": {
+    "message": "$1 riproduzioni"
+  },
+  "msg_count_song_one": {
+    "message": "$1 canzone"
+  },
+  "msg_count_song_other": {
+    "message": "$1 canzoni"
+  },
+  "msg_counterTotalPlays": {
+    "message": "Riproduzioni totali"
+  },
+  "msg_debug_boundary_date": {
+    "message": "Punto di sincronizzazione: \"$1\" ($2)"
+  },
+  "msg_debug_boundary_none": {
+    "message": "Punto di sincronizzazione: nessuno"
+  },
+  "msg_debug_console_cleared": {
+    "message": "Console di debug svuotata."
+  },
+  "msg_debug_queueing": {
+    "message": "In coda..."
+  },
+  "msg_debug_storage": {
+    "message": "Archiviazione: $1, $2, $3, $4"
+  },
+  "msg_debug_tab_connected_one": {
+    "message": "Scheda YT: Connessa ($1 elemento)"
+  },
+  "msg_debug_tab_connected_other": {
+    "message": "Scheda YT: Connessa ($1 elementi)"
+  },
+  "msg_debug_tab_none": {
+    "message": "Scheda YT: Nessuna aperta"
+  },
+  "msg_debug_tab_unreachable": {
+    "message": "Scheda YT: Non raggiungibile (Ricarica la scheda)"
+  },
+  "msg_debug_tracklists_all_resolved": {
+    "message": "Tracklist: tutte risolte"
+  },
+  "msg_debug_tracklists_queued_one": {
+    "message": "Tracklist: $1 accodata"
+  },
+  "msg_debug_tracklists_queued_other": {
+    "message": "Tracklist: $1 accodate"
+  },
+  "msg_debug_watermark": {
+    "message": "Marcatore: $1 (Ultimo: \"$2\")"
+  },
+  "msg_details_albums_empty_state": {
+    "message": "Nessun album ancora registrato. Sincronizza la cronologia di ascolto o riproduci un album per iniziare."
+  },
+  "msg_details_albums_refresh": {
+    "message": "Aggiorna"
+  },
+  "msg_details_albums_section_title": {
+    "message": "Avanzamento di ascolto degli album"
+  },
+  "msg_details_albums_show_all_albums": {
+    "message": "Mostra tutti gli album"
+  },
+  "msg_details_albums_show_all_count": {
+    "message": "Mostra tutti ($1)"
+  },
+  "msg_details_albums_show_top3_only": {
+    "message": "Mostra solo i primi 3"
+  },
+  "msg_details_albums_subtext_default": {
+    "message": "Scopri quali canzoni hai ascoltato da ogni album e segui i tuoi progressi."
+  },
+  "msg_details_albums_subtext_showing_all": {
+    "message": "Visualizzazione di tutti i $1 album registrati."
+  },
+  "msg_details_albums_subtext_showing_top3": {
+    "message": "Visualizzazione dei 3 album più riprodotti ($1 registrati in totale)."
+  },
+  "msg_details_page_title": {
+    "message": "$1 - Dettagli e impostazioni"
+  },
+  "msg_details_panel_subtitle": {
+    "message": "Le tue statistiche personali di ascolto e la cronologia su YouTube Music."
+  },
+  "msg_details_panel_title": {
+    "message": "Panoramica dell'ascolto"
+  },
+  "msg_details_stat_albums": {
+    "message": "Album"
+  },
+  "msg_details_stat_albums_finished": {
+    "message": "Album completati"
+  },
+  "msg_details_stat_artists": {
+    "message": "Artisti"
+  },
+  "msg_details_stat_different_songs": {
+    "message": "Canzoni diverse"
+  },
+  "msg_details_stat_singles": {
+    "message": "Singoli"
+  },
+  "msg_details_stat_time_listened": {
+    "message": "Tempo di ascolto"
+  },
+  "msg_details_stat_time_zero_min": {
+    "message": "0 min"
+  },
+  "msg_details_stat_total_songs_desc": {
+    "message": "Numero totale di canzoni riprodotte mentre usi l'estensione."
+  },
+  "msg_details_stat_total_songs_played": {
+    "message": "Totale canzoni riprodotte"
+  },
+  "msg_details_unit_total_plays": {
+    "message": "riproduzioni totali"
+  },
+  "msg_durationUnderOneMinute": {
+    "message": "< 1 min"
+  },
+  "msg_emptyAlbums": {
+    "message": "Nessun album ancora completato."
+  },
+  "msg_emptyArtists": {
+    "message": "Nessun artista ancora registrato."
+  },
+  "msg_emptySongs": {
+    "message": "Nessun brano ancora registrato."
+  },
+  "msg_enrich_step_done": {
+    "message": "I metadati degli album sono aggiornati."
+  },
+  "msg_enrich_step_scanning": {
+    "message": "Recupero dei metadati degli album..."
+  },
+  "msg_export_error": {
+    "message": "Errore durante l'esportazione: $1"
+  },
+  "msg_export_failed": {
+    "message": "Esportazione non riuscita: $1"
+  },
+  "msg_export_success": {
+    "message": "Libreria esportata con successo!"
+  },
+  "msg_generic_error": {
+    "message": "Errore"
+  },
+  "msg_import_error": {
+    "message": "Errore durante l'importazione: $1"
+  },
+  "msg_import_error_bad_schema": {
+    "message": "Importazione non riuscita: al backup mancano i dati di canzoni o artisti."
+  },
+  "msg_import_error_not_json": {
+    "message": "Importazione non riuscita: il file non è un oggetto JSON."
+  },
+  "msg_import_error_unrecognized_format": {
+    "message": "Importazione non riuscita: questo non è un backup di YTMusic Counter riconosciuto."
+  },
+  "msg_import_invalid_json": {
+    "message": "Formato JSON non valido: $1"
+  },
+  "msg_import_success": {
+    "message": "Importazione completata: $1, $2, $3!"
+  },
+  "msg_nav_tab_about": {
+    "message": "Informazioni"
+  },
+  "msg_nav_tab_overview": {
+    "message": "Panoramica"
+  },
+  "msg_nav_tab_settings": {
+    "message": "Impostazioni"
+  },
+  "msg_openOverview": {
+    "message": "Panoramica"
+  },
+  "msg_pillAlbums": {
+    "message": "Album"
+  },
+  "msg_pillArtists": {
+    "message": "Artisti"
+  },
+  "msg_pillCompleted": {
+    "message": "Completati"
+  },
+  "msg_pillSongs": {
+    "message": "Canzoni"
+  },
+  "msg_refreshStats": {
+    "message": "Aggiorna statistiche"
+  },
+  "msg_relative_just_now": {
+    "message": "adesso"
+  },
+  "msg_relative_recently": {
+    "message": "recentemente"
+  },
+  "msg_scan_error_scan_failed": {
+    "message": "Non è stato possibile completare la scansione."
+  },
+  "msg_scan_error_untrusted_source": {
+    "message": "L'estensione ha rifiutato la richiesta perché proviene da una pagina non attendibile."
+  },
+  "msg_scan_reason_complete": {
+    "message": "Sincronizzazione completata."
+  },
+  "msg_scan_reason_end_of_history": {
+    "message": "Raggiunto l'inizio della cronologia di ascolto."
+  },
+  "msg_scan_reason_full_history": {
+    "message": "Raggiunto il limite di 200 canzoni in cronologia. Riapri la pagina Cronologia per continuare la sincronizzazione."
+  },
+  "msg_scan_reason_navigated_away": {
+    "message": "La pagina Cronologia è stata chiusa prima che la sincronizzazione terminasse."
+  },
+  "msg_scan_reason_up_to_date": {
+    "message": "Niente di nuovo dall'ultima sincronizzazione."
+  },
+  "msg_scan_step_boundary": {
+    "message": "Ricerca del punto in cui si è fermata l'ultima sincronizzazione..."
+  },
+  "msg_scan_step_done": {
+    "message": "Sincronizzazione completata."
+  },
+  "msg_scan_step_failed": {
+    "message": "La sincronizzazione si è interrotta per un errore."
+  },
+  "msg_scan_step_importing": {
+    "message": "Importazione delle riproduzioni..."
+  },
+  "msg_scan_step_progress": {
+    "message": "$1 ($2/$3)"
+  },
+  "msg_scan_step_saving": {
+    "message": "Salvataggio delle riproduzioni..."
+  },
+  "msg_scan_step_scanning": {
+    "message": "Scansione della cronologia..."
+  },
+  "msg_scanner_enrich_progress": {
+    "message": "$1/$2 album"
+  },
+  "msg_scanner_enrich_resolving": {
+    "message": "Risoluzione dei metadati degli album"
+  },
+  "msg_scanner_finding_songs": {
+    "message": "Ricerca delle canzoni in cronologia..."
+  },
+  "msg_scanner_in_progress": {
+    "message": "Sincronizzazione in corso..."
+  },
+  "msg_scanner_interrupted": {
+    "message": "Scansione interrotta."
+  },
+  "msg_scanner_interrupted_hint": {
+    "message": "$1 Riapri la pagina della cronologia per riprendere."
+  },
+  "msg_scanner_live_counts": {
+    "message": "$1 ($2)"
+  },
+  "msg_scanner_metadata_fetching": {
+    "message": "Recupero metadati"
+  },
+  "msg_scanner_metadata_ready": {
+    "message": "Metadati pronti"
+  },
+  "msg_scanner_now_playing": {
+    "message": "🎵 \"$1\" • $2"
+  },
+  "msg_scanner_now_playing_album": {
+    "message": "🎵 \"$1\" • $2 ($3)"
+  },
+  "msg_scanner_plays_synced_one": {
+    "message": "$1 riproduzione sincronizzata"
+  },
+  "msg_scanner_plays_synced_other": {
+    "message": "$1 riproduzioni sincronizzate"
+  },
+  "msg_scanner_start_sync": {
+    "message": "Avvia sincronizzazione"
+  },
+  "msg_settings_backup_desc": {
+    "message": "Esporta i tuoi conteggi di riproduzioni, le durate di ascolto e gli album completati in un bundle JSON standardizzato e versionato, oppure importa un backup esistente."
+  },
+  "msg_settings_backup_title": {
+    "message": "Esportazione e ripristino della libreria con un clic"
+  },
+  "msg_settings_cancel": {
+    "message": "Annulla"
+  },
+  "msg_settings_confirm_step1_button": {
+    "message": "Sì, continua ($1/$2)"
+  },
+  "msg_settings_confirm_step1_note": {
+    "message": "Questo eliminerà tutti i conteggi di riproduzioni e le statistiche registrate dall'estensione."
+  },
+  "msg_settings_confirm_step1_title": {
+    "message": "Vuoi davvero reimpostare tutti i dati?"
+  },
+  "msg_settings_confirm_step2_button": {
+    "message": "Ho capito, continua ($1/$2)"
+  },
+  "msg_settings_confirm_step2_note": {
+    "message": "Tutte le tue statistiche, incluse le canzoni più ascoltate, gli artisti e l'avanzamento degli album, verranno rimosse definitivamente."
+  },
+  "msg_settings_confirm_step2_title": {
+    "message": "Ricontrolla: l'operazione non può essere annullata!"
+  },
+  "msg_settings_confirm_step3_button": {
+    "message": "Reimposta tutto definitivamente ($1/$2)"
+  },
+  "msg_settings_confirm_step3_note": {
+    "message": "Facendo clic sul pulsante qui sotto, tutti i dati memorizzati verranno eliminati immediatamente."
+  },
+  "msg_settings_confirm_step3_title": {
+    "message": "Conferma finale: vuoi reimpostare tutti i dati ora?"
+  },
+  "msg_settings_confirmation_final": {
+    "message": "Conferma $1 di $2 (finale)"
+  },
+  "msg_settings_confirmation_of": {
+    "message": "Conferma $1 di $2"
+  },
+  "msg_settings_debug_check_storage": {
+    "message": "Verifica archiviazione"
+  },
+  "msg_settings_debug_clear_logs": {
+    "message": "Cancella log"
+  },
+  "msg_settings_debug_console_placeholder": {
+    "message": "Diagnostica inizializzata. Qui appariranno in tempo reale i log di attività e gli errori."
+  },
+  "msg_settings_debug_fetch_missing": {
+    "message": "Recupera tracklist mancanti"
+  },
+  "msg_settings_debug_min_tracks": {
+    "message": "Min. brani da recuperare in blocco"
+  },
+  "msg_settings_debug_options_desc": {
+    "message": "Mostra la diagnostica per sviluppatori, i controlli di connessione e i log di debug in tempo reale."
+  },
+  "msg_settings_debug_options_title": {
+    "message": "Opzioni di debug"
+  },
+  "msg_settings_debug_ping": {
+    "message": "Ping al content script"
+  },
+  "msg_settings_debug_reset_boundary": {
+    "message": "Reimposta punto di sincronizzazione"
+  },
+  "msg_settings_debug_section_title": {
+    "message": "Diagnostica e console di debug"
+  },
+  "msg_settings_debug_tag_boundary": {
+    "message": "Punto di sincronizzazione: verifica in corso..."
+  },
+  "msg_settings_debug_tag_scanner_active": {
+    "message": "Scanner: ATTIVO ($1)"
+  },
+  "msg_settings_debug_tag_scanner_idle": {
+    "message": "Scanner: inattivo"
+  },
+  "msg_settings_debug_tag_storage": {
+    "message": "Archiviazione: verifica in corso..."
+  },
+  "msg_settings_debug_tag_tracklists_idle": {
+    "message": "Tracklist: inattiva"
+  },
+  "msg_settings_debug_tag_yt_tab": {
+    "message": "Scheda YT: verifica in corso..."
+  },
+  "msg_settings_export_library": {
+    "message": "Esporta libreria completa (.json)"
+  },
+  "msg_settings_import_library": {
+    "message": "Importa libreria (.json)"
+  },
+  "msg_settings_language_desc": {
+    "message": "Scegli la lingua usata per i testi dell'interfaccia di questa estensione."
+  },
+  "msg_settings_language_follow_browser": {
+    "message": "Usa la lingua del browser"
+  },
+  "msg_settings_language_label": {
+    "message": "Lingua dell'estensione"
+  },
+  "msg_settings_language_manifest_note": {
+    "message": "Il nome e la descrizione dell'estensione mostrati nel gestore delle estensioni del browser seguono sempre la lingua impostata nel browser e non possono essere modificati qui."
+  },
+  "msg_settings_panel_subtitle": {
+    "message": "Gestisci le impostazioni dell'estensione, la cronologia di sincronizzazione e le preferenze sui dati."
+  },
+  "msg_settings_panel_title": {
+    "message": "Impostazioni e dati"
+  },
+  "msg_settings_reset_all_button": {
+    "message": "Reimposta tutti i dati"
+  },
+  "msg_settings_reset_all_desc": {
+    "message": "Elimina definitivamente tutti i conteggi di riproduzioni, gli artisti e la cronologia di ascolto degli album salvati. L'operazione non può essere annullata."
+  },
+  "msg_settings_reset_all_title": {
+    "message": "Reimposta tutti i dati"
+  },
+  "msg_settings_reset_success": {
+    "message": "Tutti i dati sono stati reimpostati a zero."
+  },
+  "msg_settings_scanner_badge_complete": {
+    "message": "Completata"
+  },
+  "msg_settings_scanner_badge_failed": {
+    "message": "Non riuscita"
+  },
+  "msg_settings_scanner_badge_interrupted": {
+    "message": "Scansione interrotta"
+  },
+  "msg_settings_scanner_badge_syncing": {
+    "message": "Sincronizzazione della cronologia..."
+  },
+  "msg_settings_scanner_badge_up_to_date": {
+    "message": "Aggiornata"
+  },
+  "msg_settings_scanner_connecting": {
+    "message": "Connessione in corso..."
+  },
+  "msg_settings_scanner_now_syncing": {
+    "message": "Sincronizzazione in corso:"
+  },
+  "msg_settings_scanner_plays_found": {
+    "message": "0 riproduzioni trovate"
+  },
+  "msg_settings_section_backup": {
+    "message": "Backup e portabilità dei dati"
+  },
+  "msg_settings_section_cover_art": {
+    "message": "Dati delle copertine"
+  },
+  "msg_settings_section_history_sync": {
+    "message": "Sincronizzazione della cronologia di ascolto"
+  },
+  "msg_settings_section_language": {
+    "message": "Lingua"
+  },
+  "msg_settings_section_reset_data": {
+    "message": "Reimpostazione dei dati"
+  },
+  "msg_settings_start_history_sync": {
+    "message": "Avvia sincronizzazione cronologia"
+  },
+  "msg_settings_sync_previous_desc": {
+    "message": "Importa le riproduzioni passate direttamente da YouTube Music per includere la tua cronologia di ascolto precedente nelle statistiche."
+  },
+  "msg_settings_sync_previous_title": {
+    "message": "Sincronizza la cronologia precedente"
+  },
+  "msg_settings_sync_status_checking": {
+    "message": "Verifica dello stato di sincronizzazione..."
+  },
+  "msg_settings_thumbnail_cache_calculating": {
+    "message": "Calcolo in corso..."
+  },
+  "msg_settings_thumbnail_cache_check_size": {
+    "message": "Verifica dimensione"
+  },
+  "msg_settings_thumbnail_cache_clear": {
+    "message": "Svuota cache delle copertine"
+  },
+  "msg_settings_thumbnail_db_desc": {
+    "message": "Le copertine degli album vengono ridimensionate a 128×128 WebP e salvate in IndexedDB per una visualizzazione offline immediata e senza sfarfallii."
+  },
+  "msg_settings_thumbnail_db_title": {
+    "message": "Database locale delle miniature"
+  },
+  "msg_settings_toggle_debug_options": {
+    "message": "Attiva o disattiva le opzioni di debug"
+  },
+  "msg_sync_status_ready": {
+    "message": "Stato sincronizzazione: pronta per la prima sincronizzazione"
+  },
+  "msg_sync_status_synced": {
+    "message": "Stato sincronizzazione: sincronizzata $1 (Ultimo: \"$2\")"
+  },
+  "msg_tabTopAlbums": {
+    "message": "Album più ascoltati"
+  },
+  "msg_tabTopArtists": {
+    "message": "Artisti più ascoltati"
+  },
+  "msg_tabTopSongs": {
+    "message": "Canzoni più ascoltate"
+  },
+  "msg_totalDurationTooltip": {
+    "message": "Tempo totale di ascolto continuo"
+  },
+  "msg_tracks_one": {
+    "message": "$1 brano"
+  },
+  "msg_tracks_other": {
+    "message": "$1 brani"
+  }
+}

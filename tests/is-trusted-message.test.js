@@ -74,9 +74,9 @@ function loadBackground(overrides = {}) {
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
 
-  // The two shared scripts the module imports for their side effects. They are
+  // The shared scripts the module imports for their side effects. They are
   // classic scripts in the browser too, so they run in the same sandbox.
-  for (const file of ['shared/browse-parse.js', 'shared/messaging.js']) {
+  for (const file of ['shared/browse-parse.js', 'shared/messaging.js', 'shared/i18n.js']) {
     vm.runInContext(readFileSync(join(ROOT, file), 'utf8'), sandbox);
   }
 
@@ -110,7 +110,15 @@ function loadBackground(overrides = {}) {
   return listener;
 }
 
-const UNTRUSTED = { status: 'error', error: 'Untrusted message source.' };
+// AD-10: the background must not send a sentence the UI has to display, because
+// it cannot honour the in-app locale override. The English string is kept
+// deliberately as the catalog-less fallback, so both fields are asserted: the
+// code is what the UI maps, the string is what logs and older callers read.
+const UNTRUSTED = {
+  status: 'error',
+  error: 'Untrusted message source.',
+  errorCode: 'untrustedSource'
+};
 
 /**
  * Invokes the listener and reports whether it refused the message.
@@ -130,6 +138,7 @@ function dispatch(listener, message, sender) {
   const rejected = Boolean(reply && reply.status === 'error');
   if (rejected) {
     assert.equal(reply.error, UNTRUSTED.error, 'unexpected rejection reason');
+    assert.equal(reply.errorCode, UNTRUSTED.errorCode, 'rejection must carry a machine code');
   }
   return { rejected, reply };
 }

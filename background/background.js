@@ -4,6 +4,10 @@
  * continuous playback duration accumulation, and Schema v2 data bridges.
  */
 
+// Side-effect import: registers the shared locale runtime on `globalThis.YTMCI18n`.
+// Listed first so it is available to every handler below.
+import '../shared/i18n.js';
+
 import {
   calculateCompletePlays,
   cleanAlbumsDict
@@ -68,6 +72,10 @@ if (!globalThis.YTMCShared || typeof globalThis.YTMCShared.buildBrowseRequestBod
   // Without this the module would throw on the very first browse request, with a
   // stack trace pointing at the destructuring rather than at the real cause.
   throw new Error('[YTMusic Counter] shared/browse-parse.js failed to register globalThis.YTMCShared');
+}
+
+if (!globalThis.YTMCI18n || typeof globalThis.YTMCI18n.getMessages !== 'function') {
+  throw new Error('[YTMusic Counter] shared/i18n.js failed to register globalThis.YTMCI18n');
 }
 
 if (!globalThis.YTMCMessaging || typeof globalThis.YTMCMessaging.sendTabMessage !== 'function') {
@@ -214,6 +222,51 @@ function isTrustedMessage(message, sender) {
   return false;
 }
 
+/* ==========================================================================
+   Localization
+
+   The locale runtime is the shared one (shared/i18n.js), imported for its side
+   effect at the top of this file. The only thing the background needs it for is
+   serving catalogs to content scripts, whose fetch() is bound to the page origin
+   and cannot read `_locales`.
+   ========================================================================== */
+
+/** Upper bound on keys accepted by one GET_LOCALIZED_MESSAGES request. */
+const MAX_LOCALIZED_MESSAGE_KEYS = 500;
+
+/** Upper bound on a single message key length, to reject junk payloads. */
+const MAX_LOCALIZED_MESSAGE_KEY_LENGTH = 200;
+
+/**
+ * Resolves a batch of catalog keys for the content script. Serves
+ * GET_LOCALIZED_MESSAGES.
+ *
+ * Read-only, so it is deliberately left out of EXTENSION_PAGE_ONLY_TYPES: the
+ * base `sender.id` check already excludes other extensions and web pages.
+ *
+ * @param {object} payload
+ * @returns {Promise<Record<string, string>>} `{ key: rawTemplate }` for the
+ *   active override locale, or `{}` when the native `getMessage` can answer and
+ *   no catalog is needed.
+ */
+async function handleGetLocalizedMessages(payload) {
+  const requested = payload && Array.isArray(payload.keys) ? payload.keys : [];
+
+  // Bound the work: a pathological payload must not become a memory or time
+  // sink in a service worker.
+  const keys = [];
+  for (const key of requested) {
+    if (keys.length >= MAX_LOCALIZED_MESSAGE_KEYS) break;
+    if (typeof key !== 'string' || key.length === 0) continue;
+    if (key.length > MAX_LOCALIZED_MESSAGE_KEY_LENGTH) continue;
+    keys.push(key);
+  }
+
+  await globalThis.YTMCI18n.init();
+  if (!globalThis.YTMCI18n.needsCatalog()) return {};
+  return globalThis.YTMCI18n.getMessages(keys);
+}
+
 // Listen for storage changes to invalidate the stats cache
 if (extBrowser.storage && extBrowser.storage.onChanged) {
   extBrowser.storage.onChanged.addListener((changes, areaName) => {
@@ -276,7 +329,13 @@ async function autoHealMissingTracklists() {
 
 extBrowser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!isTrustedMessage(message, sender)) {
-    sendResponse({ status: 'error', error: 'Untrusted message source.' });
+    // AD-10: the UI maps `errorCode` to a localized message; `error` stays as the
+    // English fallback so nothing that renders it today breaks.
+    sendResponse({
+      status: 'error',
+      error: 'Untrusted message source.',
+      errorCode: 'untrustedSource'
+    });
     return;
   }
 
@@ -365,6 +424,13 @@ extBrowser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
 
+    case 'GET_LOCALIZED_MESSAGES': {
+      handleGetLocalizedMessages(message.payload)
+        .then(messages => sendResponse({ status: 'ok', data: messages }))
+        .catch(err => sendResponse({ status: 'error', error: err.message, errorCode: 'localizedMessagesFailed' }));
+      return true;
+    }
+
     case 'GET_THUMBNAIL_STATS': {
       getThumbnailStats()
         .then(stats => sendResponse({ status: 'ok', data: stats }))
@@ -389,7 +455,12 @@ extBrowser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case 'IMPORT_DATA_V2': {
       handleImportDataV2(message.payload)
         .then(res => sendResponse({ status: 'ok', data: res }))
-        .catch(err => sendResponse({ status: 'error', error: err.message }));
+        .catch(err => sendResponse({
+          status: 'error',
+          error: err.message,
+          // See handleImportDataV2: the UI localizes from the code, not the sentence.
+          ...(err.errorCode ? { errorCode: err.errorCode } : {})
+        }));
       return true;
     }
 
@@ -593,7 +664,13 @@ async function handleExportDataV2() {
 async function handleImportDataV2(payload) {
   const migration = validateAndMigrateImport(payload);
   if (!migration.valid) {
-    throw new Error(migration.error || 'Invalid backup data.');
+    // The machine code has to travel with the message: the Details page maps it to
+    // a localized toast, and it cannot honour the in-app language override from an
+    // English sentence alone (AD-10). The sentence stays as the fallback for a
+    // failure that carries no code.
+    const err = new Error(migration.error || 'Invalid backup data.');
+    if (migration.errorCode) err.errorCode = migration.errorCode;
+    throw err;
   }
 
   const bundle = migration.bundle;
@@ -623,9 +700,7 @@ async function handleImportDataV2(payload) {
   // ceiling in MV3), so the worker was terminated before sendResponse and the
   // Details page hung on "Importing...". Progress is mirrored to scanProgress,
   // which the Details page already listens to.
-  const queued = await enqueueAlbumEnrichment({
-    progressPrefix: 'Fetching metadata for new albums'
-  });
+  const queued = await enqueueAlbumEnrichment();
 
   return {
     success: true,
@@ -652,7 +727,7 @@ async function handleImportHistory(payload) {
   // Queued rather than awaited, for the same reason as handleImportDataV2: a full
   // enrichment batch outlives the MV3 per-event budget, and this handler must
   // still be able to answer the content script's IMPORT_HISTORY_TRACKS callback.
-  const queued = await enqueueAlbumEnrichment({ progressPrefix: 'Fetching metadata' });
+  const queued = await enqueueAlbumEnrichment();
 
   return { ...result, enrichment: queued };
 }
@@ -1204,7 +1279,6 @@ let enrichmentPumpTimer = null;
  *
  * @param {object} [options]
  * @param {boolean} [options.force] Ignore the unique-tracks threshold.
- * @param {string} [options.progressPrefix]
  * @returns {Promise<{queued: boolean, total: number, reason?: string}>}
  */
 async function enqueueAlbumEnrichment(options) {
@@ -1235,7 +1309,6 @@ async function enqueueAlbumEnrichment(options) {
     failed: 0,
     skipped: selected.length - candidates.length,
     force: Boolean(opts.force),
-    progressPrefix: opts.progressPrefix || 'Fetching metadata',
     startedAt: Date.now()
   };
 
@@ -1309,7 +1382,6 @@ async function pumpEnrichmentQueue() {
   if (!job || !Array.isArray(job.candidates)) return;
 
   const end = Math.min(job.index + ENRICHMENT_BATCH_SIZE, job.candidates.length);
-  const prefix = job.progressPrefix || 'Fetching metadata';
 
   for (; job.index < end; job.index++) {
     const [albumKey, album] = job.candidates[job.index];
@@ -1317,10 +1389,7 @@ async function pumpEnrichmentQueue() {
     // Progress is throttled: writing it for every album meant hundreds of
     // storage.set calls, and each one fired storage.onChanged on the Details page.
     if (job.index % ENRICHMENT_PROGRESS_WRITE_EVERY === 0) {
-      await publishEnrichmentProgress(buildEnrichmentProgress(
-        job,
-        `${prefix} (${job.index + 1}/${job.candidates.length})...`
-      ));
+      await publishEnrichmentProgress(buildEnrichmentProgress(job, { step: 'scanning' }));
     }
 
     const resolved = await ensureAlbumTracklist(albumKey, album.albumBrowseId);
@@ -1335,11 +1404,11 @@ async function pumpEnrichmentQueue() {
   }
 
   if (job.index >= job.candidates.length) {
-    await publishEnrichmentProgress(buildEnrichmentProgress(
-      job,
-      `${prefix} complete: ${job.updated}/${job.candidates.length} tracklists resolved.`,
-      true
-    ));
+    await publishEnrichmentProgress(buildEnrichmentProgress(job, {
+      step: 'done',
+      reason: 'complete',
+      done: true
+    }));
     await extBrowser.storage.local.remove(ENRICHMENT_QUEUE_KEY);
     debugLog('BG_ENRICH', `Enrichment finished: ${job.updated} updated, ${job.failed} unresolved, ${job.skipped} skipped, of ${job.candidates.length}.`);
     return;
@@ -1363,7 +1432,7 @@ async function pumpEnrichmentQueue() {
  */
 async function handleFetchMissingTracklists(payload) {
   const force = !payload || payload.force !== false;
-  return enqueueAlbumEnrichment({ force, progressPrefix: 'Fetching missing tracklists' });
+  return enqueueAlbumEnrichment({ force });
 }
 
 /**

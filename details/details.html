@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YTMusic Counter - Details &amp; Settings</title>
+  <title data-i18n="msg_details_page_title:YTMusic Counter">YTMusic Counter - Details &amp; Settings</title>
   <link rel="stylesheet" href="details.css">
 </head>
 <body>
@@ -28,14 +28,14 @@
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 20V10M12 20V4M6 20v-6"/>
           </svg>
-          <span>Overview</span>
+          <span data-i18n="msg_nav_tab_overview">Overview</span>
         </button>
         <button class="nav-tab" id="tabBtnConfig" data-target="configPanel" role="tab" aria-selected="false">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
-          <span>Settings</span>
+          <span data-i18n="msg_nav_tab_settings">Settings</span>
         </button>
         <button class="nav-tab" id="tabBtnAbout" data-target="aboutPanel" role="tab" aria-selected="false">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
@@ -43,7 +43,7 @@
             <path d="M12 16v-4"/>
             <path d="M12 8h.01"/>
           </svg>
-          <span>About</span>
+          <span data-i18n="msg_nav_tab_about">About</span>
         </button>
       </nav>
 
@@ -56,8 +56,8 @@
       <section class="tab-panel active" id="detailsPanel" role="tabpanel">
         <div class="panel-header">
           <div class="panel-heading">
-            <h2>Listening Overview</h2>
-            <p class="panel-subtitle">Your personal listening statistics and history on YouTube Music.</p>
+            <h2 data-i18n="msg_details_panel_title">Listening Overview</h2>
+            <p class="panel-subtitle" data-i18n="msg_details_panel_subtitle">Your personal listening statistics and history on YouTube Music.</p>
           </div>
 
         </div>
@@ -72,21 +72,21 @@
             </svg>
           </div>
           <div class="row-content">
-            <span class="row-label">Total Songs Played</span>
+            <span class="row-label" data-i18n="msg_details_stat_total_songs_played">Total Songs Played</span>
             <div class="row-value-group">
               <span class="row-value" id="totalSongsListened">0</span>
-              <span class="row-unit">total plays</span>
+              <span class="row-unit" data-i18n="msg_details_unit_total_plays">total plays</span>
             </div>
-            <p class="row-description">Total number of songs played while using the extension.</p>
+            <p class="row-description" data-i18n="msg_details_stat_total_songs_desc">Total number of songs played while using the extension.</p>
           </div>
           <div class="row-badge-side">
             <div class="mini-stat-card">
-              <span class="mini-label">Different Songs</span>
+              <span class="mini-label" data-i18n="msg_details_stat_different_songs">Different Songs</span>
               <span class="mini-value" id="uniqueSongsStat">0</span>
             </div>
             <div class="mini-stat-card">
-              <span class="mini-label">Time Listened</span>
-              <span class="mini-value" id="totalTimeStat">0 min</span>
+              <span class="mini-label" data-i18n="msg_details_stat_time_listened">Time Listened</span>
+              <span class="mini-value" id="totalTimeStat" data-i18n="msg_details_stat_time_zero_min">0 min</span>
             </div>
           </div>
         </div>
@@ -103,7 +103,7 @@
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-title">Artists</span>
+              <span class="card-title" data-i18n="msg_details_stat_artists">Artists</span>
               <span class="card-value" id="uniqueArtistsStat">0</span>
             </div>
           </div>
@@ -118,7 +118,7 @@
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-title">Albums</span>
+              <span class="card-title" data-i18n="msg_details_stat_albums">Albums</span>
               <span class="card-value" id="trackedAlbumsStat">0</span>
             </div>
           </div>
@@ -131,7 +131,7 @@
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-title">Singles</span>
+              <span class="card-title" data-i18n="msg_details_stat_singles">Singles</span>
               <span class="card-value" id="singlesStat">0</span>
             </div>
           </div>
@@ -143,7 +143,7 @@
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-title">Albums Finished</span>
+              <span class="card-title" data-i18n="msg_details_stat_albums_finished">Albums Finished</span>
               <span class="card-value" id="completedAlbumsStat">0</span>
             </div>
           </div>
@@ -155,24 +155,24 @@
         <div class="albums-breakdown-section">
           <div class="section-header-bar">
             <div class="section-title-group">
-              <h3>Album Listening Progress</h3>
-              <p class="section-subtext" id="albumsSectionSubtext">See which songs you've heard from each album and track your progress.</p>
+              <h3 data-i18n="msg_details_albums_section_title">Album Listening Progress</h3>
+              <p class="section-subtext" id="albumsSectionSubtext" data-i18n="msg_details_albums_subtext_default">See which songs you've heard from each album and track your progress.</p>
             </div>
             <div class="section-header-actions" style="display: flex; gap: 8px; align-items: center;">
               <button type="button" class="btn-secondary" id="toggleAllAlbumsBtn" style="display: none;">
-                <span id="toggleAllAlbumsText">Show All Albums</span>
+                <span id="toggleAllAlbumsText" data-i18n="msg_details_albums_show_all_albums">Show All Albums</span>
               </button>
               <button type="button" class="btn-secondary" id="refreshAlbumsBreakdownBtn">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M23 4v6h-6M1 20v-6h6"/>
                   <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
                 </svg>
-                <span>Refresh</span>
+                <span data-i18n="msg_details_albums_refresh">Refresh</span>
               </button>
             </div>
           </div>
           <div class="albums-list-container" id="albumsBreakdownList">
-            <div class="empty-state-card">No albums tracked yet. Sync your listening history or play an album to get started.</div>
+            <div class="empty-state-card" data-i18n="msg_details_albums_empty_state">No albums tracked yet. Sync your listening history or play an album to get started.</div>
           </div>
         </div>
       </section>
@@ -181,8 +181,42 @@
       <section class="tab-panel" id="configPanel" role="tabpanel">
         <div class="panel-header">
           <div class="panel-heading">
-            <h2>Settings &amp; Data</h2>
-            <p class="panel-subtitle">Manage your extension settings, sync history, and data preferences.</p>
+            <h2 data-i18n="msg_settings_panel_title">Settings &amp; Data</h2>
+            <p class="panel-subtitle" data-i18n="msg_settings_panel_subtitle">Manage your extension settings, sync history, and data preferences.</p>
+          </div>
+        </div>
+
+        <!-- Language Section -->
+        <div class="config-section">
+          <h3 class="config-section-title">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            <span data-i18n="msg_settings_section_language">Language</span>
+          </h3>
+          <div class="card cache-card">
+            <div class="cache-card-info">
+              <div>
+                <h4 class="cache-card-title" data-i18n="msg_settings_language_label">Extension language</h4>
+                <p class="cache-card-desc" data-i18n="msg_settings_language_desc">Choose the language used for this extension's own interface text.</p>
+                <p class="cache-card-desc" data-i18n="msg_settings_language_manifest_note">The extension name and description shown in your browser's extension manager always follow the browser's own language setting and cannot be changed here.</p>
+              </div>
+            </div>
+            <div class="cache-card-actions" style="margin-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <select id="languageSelect"
+                      style="padding:6px 10px;border-radius:8px;border:1px solid var(--border-color, #444);background:var(--input-bg, #1c1c1c);color:inherit;font:inherit;"
+                      data-i18n-aria-label="msg_settings_language_label">
+                <option value="" data-i18n="msg_settings_language_follow_browser">Follow browser</option>
+                <option value="en">English</option>
+                <option value="de">Deutsch</option>
+                <option value="es">Espa&ntilde;ol</option>
+                <option value="fr">Fran&ccedil;ais</option>
+                <option value="it">Italiano</option>
+                <option value="pt_BR">Portugu&ecirc;s (Brasil)</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -193,24 +227,24 @@
               <circle cx="11" cy="11" r="8"/>
               <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            Listening History Sync
+            <span data-i18n="msg_settings_section_history_sync">Listening History Sync</span>
           </h3>
           <div class="card config-card">
             <div class="config-info-row scanner-cta-row">
               <div class="config-info-text">
-                <div class="config-item-title">Sync Previous History</div>
-                <div class="config-item-desc">Import past plays directly from YouTube Music to include your previous listening history in your stats.</div>
+                <div class="config-item-title" data-i18n="msg_settings_sync_previous_title">Sync Previous History</div>
+                <div class="config-item-desc" data-i18n="msg_settings_sync_previous_desc">Import past plays directly from YouTube Music to include your previous listening history in your stats.</div>
 
                 <div class="sync-state-pill" id="historySyncPill">
                   <span class="sync-dot" id="historySyncDot"></span>
-                  <span id="historySyncText">Checking sync status...</span>
+                  <span id="historySyncText" data-i18n="msg_settings_sync_status_checking">Checking sync status...</span>
                 </div>
               </div>
               <button type="button" class="btn-primary-action" id="launchHistoryScannerBtn">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
                   <polygon points="5,3 19,12 5,21"/>
                 </svg>
-                <span>Start History Sync</span>
+                <span data-i18n="msg_settings_start_history_sync">Start History Sync</span>
               </button>
             </div>
 
@@ -219,13 +253,13 @@
               <div class="scanner-live-header">
                 <div class="scanner-live-status-group">
                   <div class="ytmc-config-spinner" id="scannerConfigSpinner"></div>
-                  <span class="scanner-live-badge" id="scannerLiveBadge">Syncing History...</span>
+                  <span class="scanner-live-badge" id="scannerLiveBadge" data-i18n="msg_settings_scanner_badge_syncing">Syncing History...</span>
                 </div>
-                <span class="scanner-live-counts" id="scannerLiveCounts">0 plays found</span>
+                <span class="scanner-live-counts" id="scannerLiveCounts" data-i18n="msg_settings_scanner_plays_found">0 plays found</span>
               </div>
               <div class="scanner-importing-card">
-                <span class="importing-label">Now syncing:</span>
-                <div class="importing-track-name" id="scannerImportingTrack">Connecting...</div>
+                <span class="importing-label" data-i18n="msg_settings_scanner_now_syncing">Now syncing:</span>
+                <div class="importing-track-name" id="scannerImportingTrack" data-i18n="msg_settings_scanner_connecting">Connecting...</div>
               </div>
             </div>
           </div>
@@ -236,10 +270,10 @@
           <div class="card config-card debug-toggle-card">
             <div class="debug-toggle-wrapper">
               <div class="debug-toggle-info">
-                <div class="config-item-title">Debug Options</div>
-                <div class="config-item-desc">Show developer diagnostics, connection checks, and live debug logs.</div>
+                <div class="config-item-title" data-i18n="msg_settings_debug_options_title">Debug Options</div>
+                <div class="config-item-desc" data-i18n="msg_settings_debug_options_desc">Show developer diagnostics, connection checks, and live debug logs.</div>
               </div>
-              <label class="toggle-switch" for="toggleDebugOptions" title="Toggle debug options">
+              <label class="toggle-switch" for="toggleDebugOptions" title="Toggle debug options" data-i18n-title="msg_settings_toggle_debug_options">
                 <input type="checkbox" id="toggleDebugOptions">
                 <span class="toggle-slider"></span>
               </label>
@@ -256,32 +290,32 @@
                 <line x1="12" y1="16" x2="12" y2="12"/>
                 <line x1="12" y1="8" x2="12.01" y2="8"/>
               </svg>
-              Diagnostics &amp; Debug Console
+              <span data-i18n="msg_settings_debug_section_title">Diagnostics &amp; Debug Console</span>
             </h3>
             <div class="debug-actions">
-              <button type="button" class="btn-debug-action" id="debugPingBtn">Ping Content Script</button>
-              <button type="button" class="btn-debug-action" id="debugCheckStorageBtn">Check Storage</button>
-              <button type="button" class="btn-debug-action" id="debugResetSyncBtn">Reset Boundary</button>
-              <button type="button" class="btn-debug-action" id="debugClearLogsBtn">Clear Logs</button>
+              <button type="button" class="btn-debug-action" id="debugPingBtn" data-i18n="msg_settings_debug_ping">Ping Content Script</button>
+              <button type="button" class="btn-debug-action" id="debugCheckStorageBtn" data-i18n="msg_settings_debug_check_storage">Check Storage</button>
+              <button type="button" class="btn-debug-action" id="debugResetSyncBtn" data-i18n="msg_settings_debug_reset_boundary">Reset Boundary</button>
+              <button type="button" class="btn-debug-action" id="debugClearLogsBtn" data-i18n="msg_settings_debug_clear_logs">Clear Logs</button>
             </div>
           </div>
           <div class="card debug-card">
             <div class="debug-status-bar">
-              <span class="debug-tag" id="debugTabStatus">YT Tab: Checking...</span>
-              <span class="debug-tag" id="debugStorageStatus">Storage: Checking...</span>
-              <span class="debug-tag" id="debugSyncBoundaryStatus">Boundary: Checking...</span>
-              <span class="debug-tag" id="debugScanStatus">Scanner: Idle</span>
+              <span class="debug-tag" id="debugTabStatus" data-i18n="msg_settings_debug_tag_yt_tab">YT Tab: Checking...</span>
+              <span class="debug-tag" id="debugStorageStatus" data-i18n="msg_settings_debug_tag_storage">Storage: Checking...</span>
+              <span class="debug-tag" id="debugSyncBoundaryStatus" data-i18n="msg_settings_debug_tag_boundary">Boundary: Checking...</span>
+              <span class="debug-tag" id="debugScanStatus" data-i18n="msg_settings_debug_tag_scanner_idle">Scanner: Idle</span>
             </div>
             <div class="debug-status-bar">
-              <span class="debug-tag" id="enrichmentStatusTag">Tracklists: Idle</span>
+              <span class="debug-tag" id="enrichmentStatusTag" data-i18n="msg_settings_debug_tag_tracklists_idle">Tracklists: Idle</span>
               <label class="debug-tag" for="enrichmentMinTracksInput" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
-                Min. tracks to batch-fetch
+                <span data-i18n="msg_settings_debug_min_tracks">Min. tracks to batch-fetch</span>
                 <input type="number" id="enrichmentMinTracksInput" min="1" max="10" step="1" value="2"
                        style="width:56px;padding:2px 6px;border-radius:6px;border:1px solid var(--border-color, #444);background:var(--input-bg, #1c1c1c);color:inherit;font:inherit;" />
               </label>
-              <button type="button" class="btn-debug-action" id="fetchMissingTracklistsBtn">Fetch Missing Tracklists</button>
+              <button type="button" class="btn-debug-action" id="fetchMissingTracklistsBtn" data-i18n="msg_settings_debug_fetch_missing">Fetch Missing Tracklists</button>
             </div>
-            <pre class="debug-console" id="debugConsole">Diagnostics initialized. Activity and error logs will appear here in real time.</pre>
+            <pre class="debug-console" id="debugConsole" data-i18n="msg_settings_debug_console_placeholder">Diagnostics initialized. Activity and error logs will appear here in real time.</pre>
           </div>
         </div>
 
@@ -293,16 +327,16 @@
               <circle cx="8.5" cy="8.5" r="1.5"/>
               <polyline points="21 15 16 10 5 21"/>
             </svg>
-            Cover Art Data
+            <span data-i18n="msg_settings_section_cover_art">Cover Art Data</span>
           </h3>
           <div class="card cache-card">
             <div class="cache-card-info">
               <div>
-                <h4 class="cache-card-title">Local Thumbnail Database</h4>
-                <p class="cache-card-desc">Album covers are downscaled to 128×128 WebP and stored in IndexedDB for instant, zero-flicker offline rendering.</p>
+                <h4 class="cache-card-title" data-i18n="msg_settings_thumbnail_db_title">Local Thumbnail Database</h4>
+                <p class="cache-card-desc" data-i18n="msg_settings_thumbnail_db_desc">Album covers are downscaled to 128×128 WebP and stored in IndexedDB for instant, zero-flicker offline rendering.</p>
               </div>
               <div class="cache-stats-badge" id="thumbnailCacheStatsBadge">
-                <span class="cache-stat-count" id="thumbnailCacheCount">Calculating...</span>
+                <span class="cache-stat-count" id="thumbnailCacheCount" data-i18n="msg_settings_thumbnail_cache_calculating">Calculating...</span>
                 <span class="cache-stat-size" id="thumbnailCacheSize"></span>
               </div>
             </div>
@@ -312,14 +346,14 @@
                   <path d="M23 4v6h-6M1 20v-6h6"/>
                   <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
                 </svg>
-                <span>Check Size</span>
+                <span data-i18n="msg_settings_thumbnail_cache_check_size">Check Size</span>
               </button>
               <button type="button" class="btn-cache-action danger-tint" id="clearThumbnailCacheBtn">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"/>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                 </svg>
-                <span>Clear Cover Cache</span>
+                <span data-i18n="msg_settings_thumbnail_cache_clear">Clear Cover Cache</span>
               </button>
               <span class="cache-op-message" id="thumbnailCacheOpMessage" style="display:none;"></span>
             </div>
@@ -334,13 +368,13 @@
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            Data Backup &amp; Portability
+            <span data-i18n="msg_settings_section_backup">Data Backup &amp; Portability</span>
           </h3>
           <div class="card cache-card">
             <div class="cache-card-info">
               <div>
-                <h4 class="cache-card-title">1-Click Library Export &amp; Restore</h4>
-                <p class="cache-card-desc">Export your complete play counts, listening durations, and album completions as a standardized, versioned JSON bundle, or import an existing backup.</p>
+                <h4 class="cache-card-title" data-i18n="msg_settings_backup_title">1-Click Library Export &amp; Restore</h4>
+                <p class="cache-card-desc" data-i18n="msg_settings_backup_desc">Export your complete play counts, listening durations, and album completions as a standardized, versioned JSON bundle, or import an existing backup.</p>
               </div>
             </div>
             <div class="cache-card-actions" style="margin-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -350,7 +384,7 @@
                   <polyline points="7 10 12 15 17 10"/>
                   <line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
-                <span>Export Complete Library (.json)</span>
+                <span data-i18n="msg_settings_export_library">Export Complete Library (.json)</span>
               </button>
               <label for="importLibraryJsonInput" class="btn-cache-action" style="cursor: pointer; margin: 0; display: inline-flex; align-items: center; gap: 6px;">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
@@ -358,7 +392,7 @@
                   <polyline points="17 8 12 3 7 8"/>
                   <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
-                <span>Import Library (.json)</span>
+                <span data-i18n="msg_settings_import_library">Import Library (.json)</span>
               </label>
               <input type="file" id="importLibraryJsonInput" accept=".json,application/json" style="display: none;">
               <span class="cache-op-message" id="importExportStatusMessage" style="display:none;"></span>
@@ -374,14 +408,14 @@
               <line x1="12" y1="9" x2="12" y2="13"/>
               <line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            Reset Data
+            <span data-i18n="msg_settings_section_reset_data">Reset Data</span>
           </h3>
 
           <div class="card danger-card">
             <div class="danger-card-header">
               <div>
-                <h4 class="danger-card-title">Reset All Data</h4>
-                <p class="danger-card-desc">Permanently clear all your saved play counts, artists, and album listening history. This cannot be undone.</p>
+                <h4 class="danger-card-title" data-i18n="msg_settings_reset_all_title">Reset All Data</h4>
+                <p class="danger-card-desc" data-i18n="msg_settings_reset_all_desc">Permanently clear all your saved play counts, artists, and album listening history. This cannot be undone.</p>
               </div>
             </div>
 
@@ -396,7 +430,7 @@
                     <line x1="10" y1="11" x2="10" y2="17"/>
                     <line x1="14" y1="11" x2="14" y2="17"/>
                   </svg>
-                  <span>Reset All Data</span>
+                  <span data-i18n="msg_settings_reset_all_button">Reset All Data</span>
                 </button>
               </div>
 
@@ -404,14 +438,14 @@
               <div class="wipe-step-view" id="wipeStep1">
                 <div class="confirm-box step-1-box">
                   <div class="confirm-header">
-                    <span class="confirm-badge">Confirmation 1 of 3</span>
-                    <h5>Are you sure you want to reset all data?</h5>
+                    <span class="confirm-badge" data-i18n="msg_settings_confirmation_of:1,3">Confirmation 1 of 3</span>
+                    <h5 data-i18n="msg_settings_confirm_step1_title">Are you sure you want to reset all data?</h5>
                   </div>
-                  <p class="confirm-note">This will erase all recorded play counts and statistics from the extension.</p>
+                  <p class="confirm-note" data-i18n="msg_settings_confirm_step1_note">This will erase all recorded play counts and statistics from the extension.</p>
                   <div class="confirm-actions">
-                    <button type="button" class="btn-cancel" id="cancelStep1Btn">Cancel</button>
+                    <button type="button" class="btn-cancel" id="cancelStep1Btn" data-i18n="msg_settings_cancel">Cancel</button>
                     <button type="button" class="btn-warning" id="confirmStep1Btn">
-                      <span>Yes, Continue (1/3)</span>
+                      <span data-i18n="msg_settings_confirm_step1_button:1,3">Yes, Continue (1/3)</span>
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="9 18 15 12 9 6"/>
                       </svg>
@@ -424,14 +458,14 @@
               <div class="wipe-step-view" id="wipeStep2">
                 <div class="confirm-box step-2-box">
                   <div class="confirm-header">
-                    <span class="confirm-badge confirm-badge-escalated">Confirmation 2 of 3</span>
-                    <h5>Please double-check: this cannot be undone!</h5>
+                    <span class="confirm-badge confirm-badge-escalated" data-i18n="msg_settings_confirmation_of:2,3">Confirmation 2 of 3</span>
+                    <h5 data-i18n="msg_settings_confirm_step2_title">Please double-check: this cannot be undone!</h5>
                   </div>
-                  <p class="confirm-note">All your stats, including top songs, artists, and album progress, will be permanently removed.</p>
+                  <p class="confirm-note" data-i18n="msg_settings_confirm_step2_note">All your stats, including top songs, artists, and album progress, will be permanently removed.</p>
                   <div class="confirm-actions">
-                    <button type="button" class="btn-cancel" id="cancelStep2Btn">Cancel</button>
+                    <button type="button" class="btn-cancel" id="cancelStep2Btn" data-i18n="msg_settings_cancel">Cancel</button>
                     <button type="button" class="btn-warning-escalated" id="confirmStep2Btn">
-                      <span>I understand, continue (2/3)</span>
+                      <span data-i18n="msg_settings_confirm_step2_button:2,3">I understand, continue (2/3)</span>
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="9 18 15 12 9 6"/>
                       </svg>
@@ -444,19 +478,19 @@
               <div class="wipe-step-view" id="wipeStep3">
                 <div class="confirm-box step-3-box">
                   <div class="confirm-header">
-                    <span class="confirm-badge confirm-badge-final">Confirmation 3 of 3 (Final)</span>
-                    <h5>Final confirmation: reset all data now?</h5>
+                    <span class="confirm-badge confirm-badge-final" data-i18n="msg_settings_confirmation_final:3,3">Confirmation 3 of 3 (Final)</span>
+                    <h5 data-i18n="msg_settings_confirm_step3_title">Final confirmation: reset all data now?</h5>
                   </div>
-                  <p class="confirm-note">Clicking the button below will immediately clear all your stored data.</p>
+                  <p class="confirm-note" data-i18n="msg_settings_confirm_step3_note">Clicking the button below will immediately clear all your stored data.</p>
                   <div class="confirm-actions">
-                    <button type="button" class="btn-cancel" id="cancelStep3Btn">Cancel</button>
+                    <button type="button" class="btn-cancel" id="cancelStep3Btn" data-i18n="msg_settings_cancel">Cancel</button>
                     <button type="button" class="btn-danger-final" id="confirmStep3Btn">
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                         <line x1="12" y1="9" x2="12" y2="13"/>
                         <line x1="12" y1="17" x2="12.01" y2="17"/>
                       </svg>
-                      <span>Permanently Reset Everything (3/3)</span>
+                      <span data-i18n="msg_settings_confirm_step3_button:3,3">Permanently Reset Everything (3/3)</span>
                     </button>
                   </div>
                 </div>
@@ -468,7 +502,7 @@
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
-              <span>All data has been reset to zero.</span>
+              <span data-i18n="msg_settings_reset_success">All data has been reset to zero.</span>
             </div>
           </div>
         </div>
@@ -478,8 +512,8 @@
       <section class="tab-panel" id="aboutPanel" role="tabpanel">
         <div class="panel-header">
           <div class="panel-heading">
-            <h2>About</h2>
-            <p class="panel-subtitle">Everything about this extension and how to reach me.</p>
+            <h2 data-i18n="msg_about_panel_title">About</h2>
+            <p class="panel-subtitle" data-i18n="msg_about_panel_subtitle">Everything about this extension and how to reach me.</p>
           </div>
         </div>
 
@@ -493,19 +527,18 @@
             </div>
             <div class="about-card-titles">
               <h3>YTMusic Counter</h3>
-              <span class="about-version">Version <span id="aboutVersion">&mdash;</span></span>
+              <span class="about-version"><span data-i18n="msg_about_version_label">Version</span> <span id="aboutVersion">&mdash;</span></span>
             </div>
           </div>
-          <p class="about-blurb">
-            YTMusic Counter keeps a private, on-device tally of everything you play on YouTube Music.
+          <p class="about-blurb" data-i18n="msg_about_blurb:YTMusic Counter">
+            YTMusic Counter keeps a running tally of everything you play on YouTube Music.
             It counts every track you listen to, tracks per-song and per-artist play counts, recognizes
-            completed albums, and measures your listening time &mdash; entirely locally in your browser.
-            Nothing is uploaded, and there is no account to create.
+            completed albums, and measures your listening time. Everything stays in your browser.
           </p>
         </div>
 
         <div class="about-section">
-          <h3 class="about-section-title">Get in touch</h3>
+          <h3 class="about-section-title" data-i18n="msg_about_section_contact">Get in touch</h3>
           <ul class="about-links">
             <li>
               <a class="about-link" id="aboutEmailLink" href="#">
@@ -513,7 +546,7 @@
                   <rect x="2" y="4" width="20" height="16" rx="2"/>
                   <path d="m2 7 10 6 10-6"/>
                 </svg>
-                <span class="about-link-label">Email me</span>
+                <span class="about-link-label" data-i18n="msg_about_link_email">Email me</span>
                 <span class="about-link-value" id="aboutEmailValue"></span>
               </a>
             </li>
@@ -524,7 +557,7 @@
                   <path d="M12 8v4"/>
                   <path d="M12 16h.01"/>
                 </svg>
-                <span class="about-link-label">Report an issue or request a feature</span>
+                <span class="about-link-label" data-i18n="msg_about_link_report">Report an issue or request a feature</span>
                 <span class="about-link-value">GitHub Issues</span>
               </a>
             </li>
@@ -533,7 +566,7 @@
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
                 </svg>
-                <span class="about-link-label">Source code</span>
+                <span class="about-link-label" data-i18n="msg_about_link_source">Source code</span>
                 <span class="about-link-value">GitHub</span>
               </a>
             </li>
@@ -557,7 +590,7 @@
         </div>
 
         <div class="about-section">
-          <h3 class="about-section-title">What's new in <span id="aboutChangelogVersion">&mdash;</span></h3>
+          <h3 class="about-section-title"><span data-i18n="msg_about_whats_new">What's new in</span> <span id="aboutChangelogVersion">&mdash;</span></h3>
           <ul class="about-changelog">
             <li>Rewrote the extension internals around a modular background service worker.</li>
             <li>Added an IndexedDB thumbnail cache so album art loads instantly and survives list changes.</li>
@@ -567,7 +600,7 @@
           </ul>
         </div>
 
-        <p class="page-footer">Made with &lt;3 by r4pture-Maik</p>
+        <p class="page-footer" data-i18n="msg_about_made_with:r4pture-Maik">Made with &lt;3 by r4pture-Maik</p>
       </section>
     </main>
   </div>

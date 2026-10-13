@@ -7,6 +7,8 @@ const extBrowser = typeof browser !== 'undefined' ? browser : chrome;
 
 const { sendRuntimeMessage } = globalThis.YTMCMessaging;
 
+const { t, plural, formatNumber, formatDuration, displayArtist } = globalThis.YTMCI18n;
+
 const elements = {
   totalPlays: document.getElementById('totalPlays'),
   totalDuration: document.getElementById('totalDuration'),
@@ -58,7 +60,7 @@ function renderStats(stats) {
   // Hero Stats
   if (elements.totalPlays) {
     const prev = elements.totalPlays.textContent;
-    const next = String(stats.totalPlays || 0);
+    const next = formatNumber(stats.totalPlays || 0);
     if (prev !== next) {
       elements.totalPlays.textContent = next;
       elements.totalPlays.classList.add('bump');
@@ -67,13 +69,13 @@ function renderStats(stats) {
   }
 
   if (elements.totalDuration) {
-    elements.totalDuration.textContent = '⏱️ ' + (stats.formattedTotalTime || '0 min');
+    elements.totalDuration.textContent = '⏱️ ' + formatDuration(stats.totalListeningSeconds);
   }
 
-  if (elements.uniqueSongs) elements.uniqueSongs.textContent = stats.uniqueSongsCount || 0;
-  if (elements.uniqueArtists) elements.uniqueArtists.textContent = stats.uniqueArtistsCount || 0;
-  if (elements.uniqueAlbums) elements.uniqueAlbums.textContent = stats.uniqueAlbumsCount || 0;
-  if (elements.completedAlbums) elements.completedAlbums.textContent = stats.completedAlbumsCount || 0;
+  if (elements.uniqueSongs) elements.uniqueSongs.textContent = formatNumber(stats.uniqueSongsCount || 0);
+  if (elements.uniqueArtists) elements.uniqueArtists.textContent = formatNumber(stats.uniqueArtistsCount || 0);
+  if (elements.uniqueAlbums) elements.uniqueAlbums.textContent = formatNumber(stats.uniqueAlbumsCount || 0);
+  if (elements.completedAlbums) elements.completedAlbums.textContent = formatNumber(stats.completedAlbumsCount || 0);
 
   // Render Top Songs
   renderSongsList(stats.topSongs || []);
@@ -86,8 +88,8 @@ function renderStats(stats) {
 }
 
 function cleanArtist(artist) {
-  if (!artist) return '';
-  return String(artist).split('•')[0].trim();
+  if (!artist) return displayArtist('');
+  return displayArtist(String(artist).split('•')[0].trim());
 }
 
 /**
@@ -181,30 +183,53 @@ function renderTopThree(list, items, emptyMessage, buildRow) {
   top3.forEach((item, idx) => list.appendChild(buildRow(item, idx)));
 }
 
-/** "3 plays" / "1 play" */
-function pluralPlays(count) {
-  return `${count || 0} ${count === 1 ? 'play' : 'plays'}`;
+/**
+ * Localized "<n> play(s)" label for a ranked row.
+ *
+ * Replaces the old `count === 1 ? 'play' : 'plays'` ternary, which gets French
+ * wrong at 0 (AD-6: `one` covers both 0 and 1 in French).
+ *
+ * @param {number} count
+ * @returns {string}
+ */
+function playsLabel(count) {
+  const value = count || 0;
+  return plural('msg_count_play', value) || `${value} plays`;
+}
+
+/**
+ * Localized "<n> song(s)" label, used by the album rows.
+ *
+ * @param {number} count
+ * @returns {string}
+ */
+function songsLabel(count) {
+  const value = count || 0;
+  return plural('msg_count_song', value) || `${value} songs`;
 }
 
 function renderSongsList(items) {
-  renderTopThree(elements.topSongsList, items, 'No songs tracked yet.', (song, idx) =>
+  renderTopThree(elements.topSongsList, items, t('msg_emptySongs') || 'No songs tracked yet.', (song, idx) =>
     createRankedItem(
       idx + 1,
       song.title || '',
       cleanArtist(song.artist),
-      pluralPlays(song.playCount)
+      playsLabel(song.playCount)
     )
   );
 }
 
 function renderArtistsList(items) {
-  renderTopThree(elements.topArtistsList, items, 'No artists tracked yet.', (artist, idx) =>
-    createRankedItem(idx + 1, cleanArtist(artist.artist), '', pluralPlays(artist.playCount))
+  renderTopThree(elements.topArtistsList, items, t('msg_emptyArtists') || 'No artists tracked yet.', (artist, idx) =>
+    createRankedItem(idx + 1, cleanArtist(artist.artist), '', playsLabel(artist.playCount))
   );
 }
 
 function renderAlbumsList(items) {
-  renderTopThree(elements.topAlbumsList, items, 'No albums tracked yet.', (album, idx) => {
+  // Same keys as popup.html's inline empty states (msg_emptyAlbums here), so the
+  // markup and this rebuilt list can never drift: this tab is the Completed
+  // Albums one, and the old "No albums tracked yet." here contradicted it.
+  renderTopThree(elements.topAlbumsList, items, t('msg_emptyAlbums') || 'No completed albums yet.', (album, idx) => {
     const uniqueTracks =
       album.uniqueTracksCount ||
       (album.tracksListened ? Object.keys(album.tracksListened).length : 1);
@@ -220,10 +245,12 @@ function renderAlbumsList(items) {
       star = document.createElement('span');
       star.className = 'star-mark';
       star.textContent = '★';
-      star.title = `Completed ${album.completePlays}x`;
+      star.title = t('msg_completedTimes', [formatNumber(album.completePlays)]) || `Completed ${album.completePlays}x`;
     }
 
-    const count = `${uniqueTracks} ${uniqueTracks === 1 ? 'song' : 'songs'} - ${pluralPlays(album.playCount)}`;
+    // " - " is punctuation, not copy, so it stays a literal; both counted parts
+    // around it are localized.
+    const count = `${songsLabel(uniqueTracks)} - ${playsLabel(album.playCount)}`;
     return createRankedItem(
       idx + 1,
       album.album || '',
@@ -272,5 +299,46 @@ if (extBrowser.storage && extBrowser.storage.onChanged) {
   });
 }
 
-// Initial fetch
-document.addEventListener('DOMContentLoaded', loadStats);
+// Locale changes and initial fetch
+/**
+ * Re-renders the whole popup in the newly selected language, with no reload.
+ *
+ * `setLocale()` already runs `localizeDocument()` itself for the static markup;
+ * repeating it here is idempotent and covers the storage-onChanged path, while
+ * `loadStats()` rebuilds the JS-generated text (count labels, empty states,
+ * the total-duration line) that the DOM pass cannot reach.
+ */
+YTMCI18n.onLocaleChanged(() => {
+  YTMCI18n.localizeDocument();
+  loadStats();
+});
+
+/**
+ * Boots the popup. The static markup is localized synchronously through the
+ * native catalog so the popup never flashes English; `init()` then reads the
+ * language override and the DOM pass repeats only when it can change the result.
+ * An `init()` failure must not leave the popup blank, so it is caught and the
+ * first-pass text simply stays on screen.
+ */
+async function bootstrap() {
+  YTMCI18n.localizeDocument();
+  const initialLocale = YTMCI18n.getLocale();
+  try {
+    await YTMCI18n.init();
+    if (YTMCI18n.getOverride() || YTMCI18n.getLocale() !== initialLocale) {
+      YTMCI18n.localizeDocument();
+    }
+  } catch (err) {
+    console.warn('[popup] i18n init failed; keeping the first-pass text:', err);
+  }
+  await loadStats();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrap);
+} else {
+  // The script tag sits at the end of <body>, so this is the defensive branch:
+  // if it ever moves into <head> the popup still renders instead of doing
+  // nothing at all.
+  bootstrap();
+}

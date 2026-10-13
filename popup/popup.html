@@ -22,7 +22,7 @@
         </div>
       </div>
       <div class="header-actions">
-        <button id="refreshStatsBtn" class="btn-icon" title="Refresh Stats">
+        <button id="refreshStatsBtn" class="btn-icon" title="Refresh Stats" data-i18n-title="msg_refreshStats" data-i18n-aria-label="msg_refreshStats">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
             <path d="M3 3v5h5"/>
@@ -33,25 +33,25 @@
 
     <!-- Main Counter Hero -->
     <section class="stat-hero">
-      <div class="counter-label">Total Plays</div>
+      <div class="counter-label" data-i18n="msg_counterTotalPlays">Total Plays</div>
       <div class="counter-value" id="totalPlays">0</div>
-      <div class="counter-duration" id="totalDuration" title="Total continuous listening time">⏱️ 0 min</div>
+      <div class="counter-duration" id="totalDuration" title="Total continuous listening time" data-i18n-title="msg_totalDurationTooltip">⏱️ 0 min</div>
       <div class="stat-pills">
         <div class="pill">
           <span class="pill-value" id="uniqueSongs">0</span>
-          <span class="pill-label">Songs</span>
+          <span class="pill-label" data-i18n="msg_pillSongs">Songs</span>
         </div>
         <div class="pill">
           <span class="pill-value" id="uniqueArtists">0</span>
-          <span class="pill-label">Artists</span>
+          <span class="pill-label" data-i18n="msg_pillArtists">Artists</span>
         </div>
         <div class="pill">
           <span class="pill-value" id="uniqueAlbums">0</span>
-          <span class="pill-label">Albums</span>
+          <span class="pill-label" data-i18n="msg_pillAlbums">Albums</span>
         </div>
         <div class="pill">
           <span class="pill-value" id="completedAlbums">0</span>
-          <span class="pill-label">Completed</span>
+          <span class="pill-label" data-i18n="msg_pillCompleted">Completed</span>
         </div>
       </div>
     </section>
@@ -61,27 +61,27 @@
     <section class="card grouped-section">
       <!-- Tabs -->
       <div class="tab-bar">
-        <button class="tab-btn active" data-tab="songsTab">Top Songs</button>
-        <button class="tab-btn" data-tab="artistsTab">Top Artists</button>
-        <button class="tab-btn" data-tab="albumsTab">Top Albums</button>
+        <button class="tab-btn active" data-tab="songsTab" data-i18n="msg_tabTopSongs">Top Songs</button>
+        <button class="tab-btn" data-tab="artistsTab" data-i18n="msg_tabTopArtists">Top Artists</button>
+        <button class="tab-btn" data-tab="albumsTab" data-i18n="msg_tabTopAlbums">Top Albums</button>
       </div>
 
       <!-- Tab Contents -->
       <div class="tab-content active" id="songsTab">
         <ul class="ranked-list" id="topSongsList">
-          <li class="empty-state">No songs tracked yet.</li>
+          <li class="empty-state" data-i18n="msg_emptySongs">No songs tracked yet.</li>
         </ul>
       </div>
 
       <div class="tab-content" id="artistsTab">
         <ul class="ranked-list" id="topArtistsList">
-          <li class="empty-state">No artists tracked yet.</li>
+          <li class="empty-state" data-i18n="msg_emptyArtists">No artists tracked yet.</li>
         </ul>
       </div>
 
       <div class="tab-content" id="albumsTab">
         <ul class="ranked-list" id="topAlbumsList">
-          <li class="empty-state">No completed albums yet.</li>
+          <li class="empty-state" data-i18n="msg_emptyAlbums">No completed albums yet.</li>
         </ul>
       </div>
     </section>
@@ -92,11 +92,14 @@
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18 20V10M12 20V4M6 20v-6"/>
         </svg>
-        Overview
+        <!-- The label sits in its own span: localizeDocument() writes textContent,
+             which would otherwise delete the icon svg inside the button. -->
+        <span data-i18n="msg_openOverview">Overview</span>
       </button>
     </footer>
   </div>
 
+  <script src="../shared/i18n.js"></script>
   <script src="../shared/messaging.js"></script>
   <script src="popup.js"></script>
 </body>

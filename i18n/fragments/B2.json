@@ -1,0 +1,148 @@
+{
+  "msg_completedTimes": {
+    "message": "Completed $1x",
+    "description": "Tooltip on the star mark next to an album in the popup's Completed Albums tab. Means the album was played start to finish $1 times. Do not confuse 'completed' (listened to the whole album in one sitting) with 'tracked' (individual songs registered).",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "msg_count_hour_one": {
+    "message": "$1 hr",
+    "description": "Whole hours in the popup's total listening time, singular. Abbreviated to match the compact space the popup gives this line; use the usual short form for hours in your language (e.g. 'h' in French, 'Std' in German). Categories: _zero, _one, _other.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "msg_count_hour_other": {
+    "message": "$1 hrs",
+    "description": "Whole hours in the popup's total listening time, plural (also used for 0). Categories: _zero, _one, _other.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "14"
+      }
+    }
+  },
+  "msg_count_hour_zero": {
+    "message": "$1 hrs",
+    "description": "Zero hours, Brazilian Portuguese only. Every other shipped locale falls back to _other for 0, so this form must stay identical to _other there. Categories: _zero, _one, _other.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "0"
+      }
+    }
+  },
+  "msg_count_minute_one": {
+    "message": "$1 min",
+    "description": "Whole minutes in the popup's total listening time, singular. Abbreviated to match the compact space the popup gives this line; use the usual short form for minutes in your language (e.g. 'min' in French and German, 'min' in Spanish and Italian). Categories: _zero, _one, _other.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "msg_count_minute_other": {
+    "message": "$1 mins",
+    "description": "Whole minutes in the popup's total listening time, plural (also used for 0). Categories: _zero, _one, _other.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "28"
+      }
+    }
+  },
+  "msg_count_minute_zero": {
+    "message": "$1 mins",
+    "description": "Zero minutes, Brazilian Portuguese only. Every other shipped locale falls back to _other for 0, so this form must stay identical to _other there. Categories: _zero, _one, _other.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "0"
+      }
+    }
+  },
+  "msg_count_play_one": {
+    "message": "$1 play",
+    "description": "How many times a song, artist or album has been played, singular. 'Play' means one registered playback of a track - the unit the popup's Top Songs, Top Artists and Top Albums lists count in, and the unit the hero 'Total Plays' counter uses. Keep it consistent with the count words elsewhere in the UI. Categories: _zero, _one, _other.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "msg_count_play_other": {
+    "message": "$1 plays",
+    "description": "How many times a song, artist or album has been played, plural (also used for 0 in en/de/es/it). One registered playback of a track per 'play'. Categories: _zero, _one, _other.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "msg_count_play_zero": {
+    "message": "$1 plays",
+    "description": "Zero plays, Brazilian Portuguese only: 'Intl.PluralRules(\"pt-BR\").select(0)' reports 'one' in current ICU, but \"0 plays\" is what reads correctly in Portuguese, so this locale ships an explicit zero form. Every other shipped locale falls back to _other for 0, so this form must stay identical to _other there. Keep the $1 placeholder. Categories: _zero, _one, _other.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "0"
+      }
+    }
+  },
+  "msg_count_song_one": {
+    "message": "$1 song",
+    "description": "How many distinct tracks an album contains, singular. Shown on each Completed Albums row as '<n> songs - <n> plays', i.e. how many of the album's tracks were ever registered. Categories: _zero, _one, _other.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "msg_count_song_other": {
+    "message": "$1 songs",
+    "description": "How many distinct tracks an album contains, plural (also used for 0 in en/de/es/it). Shown on each Completed Albums row before the play count. Categories: _zero, _one, _other.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "msg_count_song_zero": {
+    "message": "$1 songs",
+    "description": "Zero songs, Brazilian Portuguese only. Every other shipped locale falls back to _other for 0, so this form must stay identical to _other there. Categories: _zero, _one, _other.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "0"
+      }
+    }
+  },
+  "msg_durationUnderOneMinute": {
+    "message": "< 1 min",
+    "description": "Popup hero, total continuous listening time, when the total is under a minute but not zero. Keep the leading '<' - it means 'less than' and must not be dropped. Translate only the unit."
+  },
+  "msg_emptyAlbums": {
+    "message": "No completed albums yet.",
+    "description": "Empty state for the popup's Completed Albums tab, shown when no album has been played start to finish yet. Shared with popup.html's inline <li class=\"empty-state\">; the popup JS used to render 'No albums tracked yet.' for the same list, which contradicted the markup."
+  },
+  "msg_emptyArtists": {
+    "message": "No artists tracked yet.",
+    "description": "Empty state for the popup's Top Artists tab, shown when no song has been played yet. Shared with popup.html's inline <li class=\"empty-state\"> so the two call sites cannot drift apart."
+  },
+  "msg_emptySongs": {
+    "message": "No songs tracked yet.",
+    "description": "Empty state for the popup's Top Songs tab, shown when no song has been played yet. Shared with popup.html's inline <li class=\"empty-state\"> so the two call sites cannot drift apart."
+  }
+}

@@ -8,7 +8,8 @@ import {
   sanitizeStorageData,
   createExportBundleV2,
   isDangerousKey,
-  PENDING_DURATIONS_KEY
+  PENDING_DURATIONS_KEY,
+  validateAndMigrateImport
 } from '../background/storage.js';
 
 describe('Storage Module - Key Helpers', () => {
@@ -161,5 +162,62 @@ describe('Storage Module - createExportBundleV2', () => {
 describe('Storage Module - pendingDurations key', () => {
   test('is namespaced so it cannot collide with the counters', () => {
     assert.equal(PENDING_DURATIONS_KEY, 'pendingDurations');
+  });
+});
+
+describe('Storage Module - validateAndMigrateImport error codes (AD-10)', () => {
+  /**
+   * AD-10: the background may not send a sentence the UI has to display, because
+   * it cannot honour the in-app locale override. Each failure therefore carries a
+   * stable `errorCode` the UI maps to a message key, *alongside* the English
+   * `error` string that stays for log output and catalog-less callers.
+   */
+  const CASES = [
+    {
+      label: 'a non-object payload',
+      input: 'not json at all',
+      errorCode: 'importInvalidJson',
+      error: 'Import payload must be a valid JSON object.'
+    },
+    {
+      label: 'a schema v2 bundle missing its dictionaries',
+      input: { schemaVersion: 2, songs: null, artists: {} },
+      errorCode: 'malformedSchemaV2',
+      error: 'Malformed Schema v2: songs or artists dictionary missing.'
+    },
+    {
+      label: 'a backup with no recognisable collections',
+      input: { data: { unrelated: true } },
+      errorCode: 'unrecognizedBackupFormat',
+      error: 'Unrecognized backup format. No songs, artists, or albums found.'
+    }
+  ];
+
+  for (const { label, input, errorCode, error } of CASES) {
+    test(`reports ${errorCode} for ${label}`, () => {
+      const result = validateAndMigrateImport(input);
+
+      assert.equal(result.valid, false);
+      assert.equal(result.errorCode, errorCode, 'the machine code is what the UI maps');
+      // The English fallback is kept deliberately: it is still asserted, not
+      // replaced, so a wording regression cannot slip through either.
+      assert.equal(result.error, error);
+      assert.equal(result.bundle, undefined, 'a rejected import must not carry a bundle');
+    });
+  }
+
+  test('a valid schema v2 bundle carries no errorCode', () => {
+    const result = validateAndMigrateImport({
+      schemaVersion: 2,
+      songs: { 'ok:::x': { title: 'Ok', artist: 'X', playCount: 2, durationSeconds: 300 } },
+      artists: { x: { artist: 'X', playCount: 2, durationSeconds: 300 } },
+      albums: {},
+      metrics: { totalPlays: 2, totalListeningSeconds: 600 }
+    });
+
+    assert.equal(result.valid, true);
+    assert.equal(result.error, undefined);
+    assert.equal(result.errorCode, undefined);
+    assert.equal(result.bundle.totalListeningSeconds, 600);
   });
 });

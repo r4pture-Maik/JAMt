@@ -1,0 +1,441 @@
+{
+  "msg_details_page_title": {
+    "message": "$1 - Details & Settings",
+    "description": "Browser tab / window title of the Details page. $1 is the extension's brand name and must stay byte-identical in every locale (AD-7).",
+    "placeholders": {
+      "brand": {
+        "content": "$1",
+        "example": "YTMusic Counter"
+      }
+    }
+  },
+  "msg_nav_tab_overview": {
+    "message": "Overview",
+    "description": "Label of the first navigation tab, which shows the listening statistics summary. Short - one word preferred."
+  },
+  "msg_nav_tab_settings": {
+    "message": "Settings",
+    "description": "Label of the second navigation tab, which holds configuration, sync and data management. Short - one word preferred."
+  },
+  "msg_nav_tab_about": {
+    "message": "About",
+    "description": "Label of the third navigation tab, which holds the extension description and contact links. Short - one word preferred."
+  },
+
+  "msg_details_panel_title": {
+    "message": "Listening Overview",
+    "description": "Heading at the top of the first tab. Refers to the statistics summary of what the user has played."
+  },
+  "msg_details_panel_subtitle": {
+    "message": "Your personal listening statistics and history on YouTube Music.",
+    "description": "Sub-heading under the Overview title. \"YouTube Music\" is a product name and is not translated."
+  },
+  "msg_details_stat_total_songs_played": {
+    "message": "Total Songs Played",
+    "description": "Label of the large hero statistic on the Overview tab. A play = one started song on YouTube Music, NOT a unique track and NOT a stream of audio; keep it distinct from the 'Different Songs' label next to it."
+  },
+  "msg_details_unit_total_plays": {
+    "message": "total plays",
+    "description": "Unit shown immediately after the large total-plays number. It is a standalone unit label, not a counted phrase, so it must stay grammatical on its own and must NOT be given a plural form."
+  },
+  "msg_details_stat_total_songs_desc": {
+    "message": "Total number of songs played while using the extension.",
+    "description": "Explanation under the hero statistic. Clarifies that only listens recorded by this extension are counted."
+  },
+  "msg_details_stat_different_songs": {
+    "message": "Different Songs",
+    "description": "Label of the small statistic card for the count of DISTINCT songs played, as opposed to the total number of plays. \"Different\" must not be read as a translation of the artist or album sense."
+  },
+  "msg_details_stat_time_listened": {
+    "message": "Time Listened",
+    "description": "Label of the small statistic card showing accumulated listening duration."
+  },
+  "msg_details_stat_time_zero_min": {
+    "message": "0 min",
+    "description": "Initial placeholder shown in the Time Listened card before the real duration is computed. JS replaces this immediately; keep it short and keep the abbreviation."
+  },
+  "msg_details_stat_artists": {
+    "message": "Artists",
+    "description": "Label of the statistic card counting distinct artists the user has played."
+  },
+  "msg_details_stat_albums": {
+    "message": "Albums",
+    "description": "Label of the statistic card counting the albums the user has played tracks from. Music-industry sense of 'album', not a generic 'book'."
+  },
+  "msg_details_stat_singles": {
+    "message": "Singles",
+    "description": "Label of the statistic card counting standalone track releases the user has played, as opposed to tracks that belong to an album."
+  },
+  "msg_details_stat_albums_finished": {
+    "message": "Albums Finished",
+    "description": "Label of the statistic card counting albums where the user has heard every track. Past participle - keep it as a completed action, not a future one."
+  },
+  "msg_details_albums_section_title": {
+    "message": "Album Listening Progress",
+    "description": "Heading of the per-album breakdown section on the Overview tab."
+  },
+  "msg_details_albums_subtext_default": {
+    "message": "See which songs you've heard from each album and track your progress.",
+    "description": "Sub-heading of the per-album breakdown section, shown when 3 or fewer albums are tracked and there is no top-3/show-all toggle to describe. details.js reuses this exact string in that state - keep the two call sites identical."
+  },
+  "msg_details_albums_show_all_albums": {
+    "message": "Show All Albums",
+    "description": "Initial label of the button that expands the album list from the top 3 to every tracked album. details.js overwrites this label with a counted variant once more than 3 albums exist, so this uncounted form is the pre-data / under-threshold state."
+  },
+  "msg_details_albums_refresh": {
+    "message": "Refresh",
+    "description": "Button that re-reads the album breakdown from storage."
+  },
+  "msg_details_albums_empty_state": {
+    "message": "No albums tracked yet. Sync your listening history or play an album to get started.",
+    "description": "Empty state shown in the album breakdown list when the user has no tracked albums. Two sentences: state the problem, then suggest the two ways out (syncing history, or simply playing an album). details.js renders this same string in a generated card - keep the two identical."
+  },
+
+  "msg_settings_panel_title": {
+    "message": "Settings & Data",
+    "description": "Heading at the top of the Settings tab. The section covers both preferences and stored data."
+  },
+  "msg_settings_panel_subtitle": {
+    "message": "Manage your extension settings, sync history, and data preferences.",
+    "description": "Sub-heading under the Settings title."
+  },
+  "msg_settings_section_language": {
+    "message": "Language",
+    "description": "Heading of the language selector section in Settings."
+  },
+  "msg_settings_language_label": {
+    "message": "Extension language",
+    "description": "Label for the language dropdown. Also used as the dropdown's accessible name for screen readers, so keep it short enough to work as an aria-label."
+  },
+  "msg_settings_language_desc": {
+    "message": "Choose the language used for this extension's own interface text.",
+    "description": "Helper text under the language dropdown label. Clarifies that the setting covers the in-page UI only, which is what users often misunderstand."
+  },
+  "msg_settings_language_manifest_note": {
+    "message": "The extension name and description shown in your browser's extension manager always follow the browser's own language setting and cannot be changed here.",
+    "description": "Disclaimer explaining a platform limitation: the browser resolves the manifest name and description from the BROWSER locale at install/update time, so no in-page setting can override them. Must not promise the user any way to change them - that would be false on both Chrome and Firefox."
+  },
+  "msg_settings_language_follow_browser": {
+    "message": "Follow browser",
+    "description": "Label of the language dropdown's first option, which is the empty value meaning 'use whatever language the browser is set to'. Not a language name - it is an instruction."
+  },
+  "msg_settings_section_history_sync": {
+    "message": "Listening History Sync",
+    "description": "Heading of the section that imports past listening history from YouTube Music."
+  },
+  "msg_settings_sync_previous_title": {
+    "message": "Sync Previous History",
+    "description": "Title of the history import card inside the sync section."
+  },
+  "msg_settings_sync_previous_desc": {
+    "message": "Import past plays directly from YouTube Music to include your previous listening history in your stats.",
+    "description": "Explanation of what the history import does. \"YouTube Music\" is a product name and is not translated."
+  },
+  "msg_settings_sync_status_checking": {
+    "message": "Checking sync status...",
+    "description": "Transient status text in the sync pill while the extension reads the stored sync watermark. Shown for a moment on page load, then replaced. Keep the ellipsis convention of the target locale."
+  },
+  "msg_settings_start_history_sync": {
+    "message": "Start History Sync",
+    "description": "Button that launches the background history scanner. Verb-first button label."
+  },
+  "msg_settings_scanner_badge_syncing": {
+    "message": "Syncing History...",
+    "description": "Status badge in the live scanner panel, shown before any track has been imported. details.js replaces this badge text with 'Fetching Metadata' / 'Metadata Ready' while the enrichment pass runs, so this is specifically the initial scanning state."
+  },
+  "msg_settings_scanner_plays_found": {
+    "message": "0 plays found",
+    "description": "Count readout beside the scanner status badge, showing zero before the scan begins. This is a STATIC HTML-only string, NOT a plural base: the live count is rendered separately by details.js through plural('msg_scanner_plays_synced', count), so no _zero/_one/_other forms of this key exist or are needed. Translate it as the zero-state wording and keep it consistent in tone with the live count that replaces it."
+  },
+  "msg_settings_scanner_now_syncing": {
+    "message": "Now syncing:",
+    "description": "Label introducing the name of the track currently being imported. Ends with a colon because a track name follows it."
+  },
+  "msg_settings_scanner_connecting": {
+    "message": "Connecting...",
+    "description": "Placeholder track name shown in the scanner panel before the first track arrives."
+  },
+  "msg_settings_debug_options_title": {
+    "message": "Debug Options",
+    "description": "Title of the toggle that reveals the developer diagnostics section."
+  },
+  "msg_settings_debug_options_desc": {
+    "message": "Show developer diagnostics, connection checks, and live debug logs.",
+    "description": "Explanation of what the Debug Options toggle reveals."
+  },
+  "msg_settings_toggle_debug_options": {
+    "message": "Toggle debug options",
+    "description": "Tooltip on the Debug Options switch. Rendered as a mouse tooltip, so keep it short and verb-first."
+  },
+  "msg_settings_debug_section_title": {
+    "message": "Diagnostics & Debug Console",
+    "description": "Heading of the hidden diagnostics section revealed by the Debug Options toggle."
+  },
+  "msg_settings_debug_ping": {
+    "message": "Ping Content Script",
+    "description": "Debug button that pings the content script to verify it is alive and responding."
+  },
+  "msg_settings_debug_check_storage": {
+    "message": "Check Storage",
+    "description": "Debug button that reads and reports the state of extension storage."
+  },
+  "msg_settings_debug_reset_boundary": {
+    "message": "Reset Boundary",
+    "description": "Debug button that clears the history sync watermark so the next sync re-scans from scratch. 'Boundary' is the project's term for that watermark - keep it as one word if the target language has a natural compound, otherwise pick the clearest ordinary word for the scan position."
+  },
+  "msg_settings_debug_clear_logs": {
+    "message": "Clear Logs",
+    "description": "Debug button that empties the on-page diagnostics console."
+  },
+  "msg_settings_debug_tag_yt_tab": {
+    "message": "YT Tab: Checking...",
+    "description": "Transient debug status tag reporting whether the content script is present on a YouTube Music tab. \"YT\" is an abbreviation of the product name and should stay abbreviated."
+  },
+  "msg_settings_debug_tag_storage": {
+    "message": "Storage: Checking...",
+    "description": "Transient debug status tag reporting the result of the storage check."
+  },
+  "msg_settings_debug_tag_boundary": {
+    "message": "Boundary: Checking...",
+    "description": "Transient debug status tag reporting the history sync watermark. Same 'Boundary' terminology as the Reset Boundary button."
+  },
+  "msg_settings_debug_tag_scanner_idle": {
+    "message": "Scanner: Idle",
+    "description": "Initial debug status tag showing the history scanner is not running. Paired with 'Boundary'/'Storage' tags that use the same 'Label: State' punctuation, so keep the colon."
+  },
+  "msg_settings_debug_tag_tracklists_idle": {
+    "message": "Tracklists: Idle",
+    "description": "Initial debug status tag showing the metadata / tracklist fetch pass is not running. 'Tracklists' is the platform name for a song's track listing - do not translate it as a literal musical track list."
+  },
+  "msg_settings_debug_min_tracks": {
+    "message": "Min. tracks to batch-fetch",
+    "description": "Label of the numeric debug input controlling how many tracks are bundled into one metadata request. Abbreviate 'Minimum' to fit the tight debug bar."
+  },
+  "msg_settings_debug_fetch_missing": {
+    "message": "Fetch Missing Tracklists",
+    "description": "Debug button that requests metadata for tracks whose tracklists are not yet cached."
+  },
+  "msg_settings_debug_console_placeholder": {
+    "message": "Diagnostics initialized. Activity and error logs will appear here in real time.",
+    "description": "Initial text of the on-page debug console before any log line arrives. Developer-facing, but it is fixed UI chrome rather than log output, so it is translated like any other label."
+  },
+  "msg_settings_section_cover_art": {
+    "message": "Cover Art Data",
+    "description": "Heading of the section covering the cached album artwork."
+  },
+  "msg_settings_thumbnail_db_title": {
+    "message": "Local Thumbnail Database",
+    "description": "Title of the card describing the on-device album art cache."
+  },
+  "msg_settings_thumbnail_db_desc": {
+    "message": "Album covers are downscaled to 128×128 WebP and stored in IndexedDB for instant, zero-flicker offline rendering.",
+    "description": "Explanation of the thumbnail cache. \"WebP\" and \"IndexedDB\" are proper technical names and are not translated; keep the numbers 128 and 128 exactly as written."
+  },
+  "msg_settings_thumbnail_cache_calculating": {
+    "message": "Calculating...",
+    "description": "Placeholder shown in the thumbnail cache badge while the size is being computed."
+  },
+  "msg_settings_thumbnail_cache_check_size": {
+    "message": "Check Size",
+    "description": "Button that recomputes the thumbnail cache entry count and total size."
+  },
+  "msg_settings_thumbnail_cache_clear": {
+    "message": "Clear Cover Cache",
+    "description": "Button that deletes all cached album artwork. \"Cover\" here means album art, not a book jacket."
+  },
+  "msg_settings_section_backup": {
+    "message": "Data Backup & Portability",
+    "description": "Heading of the section covering library export and import."
+  },
+  "msg_settings_backup_title": {
+    "message": "1-Click Library Export & Restore",
+    "description": "Title of the export/import card. '1-Click' promises that a single action is all it takes - keep that promise in the translation."
+  },
+  "msg_settings_backup_desc": {
+    "message": "Export your complete play counts, listening durations, and album completions as a standardized, versioned JSON bundle, or import an existing backup.",
+    "description": "Explanation of what the export contains and that an existing backup can be re-imported. \"JSON\" is a format name and is not translated."
+  },
+  "msg_settings_export_library": {
+    "message": "Export Complete Library (.json)",
+    "description": "Button that downloads the full library as a JSON file. The (.json) suffix is a literal file extension - keep it exactly as written."
+  },
+  "msg_settings_import_library": {
+    "message": "Import Library (.json)",
+    "description": "Button that opens a file picker to restore a JSON backup. The (.json) suffix is a literal file extension - keep it exactly as written."
+  },
+  "msg_settings_section_reset_data": {
+    "message": "Reset Data",
+    "description": "Heading of the danger zone where all stored data can be erased."
+  },
+  "msg_settings_reset_all_title": {
+    "message": "Reset All Data",
+    "description": "Title of the danger-zone card. Same wording as the button below it - keep the two consistent in every locale."
+  },
+  "msg_settings_reset_all_desc": {
+    "message": "Permanently clear all your saved play counts, artists, and album listening history. This cannot be undone.",
+    "description": "Warning describing exactly what Reset All Data destroys. The final sentence must stay a clear, unambiguous statement that the action is irreversible."
+  },
+  "msg_settings_reset_all_button": {
+    "message": "Reset All Data",
+    "description": "Label of the button that enters the 3-step reset confirmation flow. Same wording as the card title immediately above it - keep the two consistent in every locale."
+  },
+  "msg_settings_confirmation_of": {
+    "message": "Confirmation $1 of $2",
+    "description": "Badge on the first two steps of the reset confirmation flow. $1 is the step number, $2 is the total step count; both are single digits in the English catalog and are supplied as literal attribute text.",
+    "placeholders": {
+      "step": {
+        "content": "$1",
+        "example": "1"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      }
+    }
+  },
+  "msg_settings_confirmation_final": {
+    "message": "Confirmation $1 of $2 (Final)",
+    "description": "Badge on the last step of the reset confirmation flow. Separate key from the earlier steps so the '(Final)' emphasis can be rendered idiomatically. $1 is the step number, $2 the total.",
+    "placeholders": {
+      "step": {
+        "content": "$1",
+        "example": "3"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      }
+    }
+  },
+  "msg_settings_confirm_step1_title": {
+    "message": "Are you sure you want to reset all data?",
+    "description": "Question heading of the first reset confirmation step."
+  },
+  "msg_settings_confirm_step1_note": {
+    "message": "This will erase all recorded play counts and statistics from the extension.",
+    "description": "Body text of the first reset confirmation step."
+  },
+  "msg_settings_cancel": {
+    "message": "Cancel",
+    "description": "Button that abandons the reset confirmation flow at any step. One key shared by all three cancel buttons."
+  },
+  "msg_settings_confirm_step1_button": {
+    "message": "Yes, Continue ($1/$2)",
+    "description": "Button that advances from the first to the second reset confirmation step. $1 is the current step, $2 the total. The parentheses are part of the English convention - translate the intent, not the punctuation.",
+    "placeholders": {
+      "step": {
+        "content": "$1",
+        "example": "1"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      }
+    }
+  },
+  "msg_settings_confirm_step2_title": {
+    "message": "Please double-check: this cannot be undone!",
+    "description": "Question heading of the second reset confirmation step, escalating the warning."
+  },
+  "msg_settings_confirm_step2_note": {
+    "message": "All your stats, including top songs, artists, and album progress, will be permanently removed.",
+    "description": "Body text of the second reset confirmation step, naming the specific data that will be lost."
+  },
+  "msg_settings_confirm_step2_button": {
+    "message": "I understand, continue ($1/$2)",
+    "description": "Button that advances from the second to the final reset confirmation step. $1 is the current step, $2 the total.",
+    "placeholders": {
+      "step": {
+        "content": "$1",
+        "example": "2"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      }
+    }
+  },
+  "msg_settings_confirm_step3_title": {
+    "message": "Final confirmation: reset all data now?",
+    "description": "Question heading of the final, irreversible reset confirmation step."
+  },
+  "msg_settings_confirm_step3_note": {
+    "message": "Clicking the button below will immediately clear all your stored data.",
+    "description": "Body text of the final reset confirmation step, stating that the action takes effect immediately."
+  },
+  "msg_settings_confirm_step3_button": {
+    "message": "Permanently Reset Everything ($1/$2)",
+    "description": "The irreversible button that actually performs the data wipe. Must read as destructive and final. $1 is the current step, $2 the total.",
+    "placeholders": {
+      "step": {
+        "content": "$1",
+        "example": "3"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      }
+    }
+  },
+  "msg_settings_reset_success": {
+    "message": "All data has been reset to zero.",
+    "description": "Confirmation shown in the green success alert once the data wipe completes."
+  },
+
+  "msg_about_panel_title": {
+    "message": "About",
+    "description": "Heading at the top of the About tab. Short - one word preferred."
+  },
+  "msg_about_panel_subtitle": {
+    "message": "Everything about this extension and how to reach me.",
+    "description": "Sub-heading under the About title. Written in the first person by the extension's author; keep the first-person voice."
+  },
+  "msg_about_app_name": {
+    "message": "YTMusic Counter",
+    "description": "The extension's brand name as shown in the nav bar and the About card. AD-7: this is a brand and MUST be byte-identical in every locale - reproduce it exactly, do not translate, transliterate, localize or add diacritics."
+  },
+  "msg_about_version_label": {
+    "message": "Version",
+    "description": "Word preceding the version number in the About card. The version number itself is injected by JS and is never translated."
+  },
+  "msg_about_blurb": {
+    "message": "$1 keeps a running tally of everything you play on YouTube Music. It counts every track you listen to, tracks per-song and per-artist play counts, recognizes completed albums, and measures your listening time. Everything stays in your browser.",
+    "description": "The About panel's main marketing paragraph. $1 is the extension's brand name and must stay byte-identical (AD-7); \"YouTube Music\" is a product name and is not translated. Preserve the selling points in order: counting every play, accurate per-song and per-artist counts, album completion detection, and measured listening time. The last sentence is the local-only guarantee - keep it a plain factual statement, do not expand it into a policy claim.",
+    "placeholders": {
+      "brand": {
+        "content": "$1",
+        "example": "YTMusic Counter"
+      }
+    }
+  },
+  "msg_about_section_contact": {
+    "message": "Get in touch",
+    "description": "Heading of the About panel section listing the contact and support links."
+  },
+  "msg_about_link_email": {
+    "message": "Email me",
+    "description": "Label of the link that opens the author's email address. First person, matching the author's voice."
+  },
+  "msg_about_link_report": {
+    "message": "Report an issue or request a feature",
+    "description": "Label of the link to the issue tracker. Covers both bug reports and feature requests, so translate it as one label for both purposes rather than splitting it."
+  },
+  "msg_about_link_source": {
+    "message": "Source code",
+    "description": "Label of the link to the public source repository."
+  },
+  "msg_about_whats_new": {
+    "message": "What's new in",
+    "description": "Text preceding the version number in the changelog heading. Ends mid-phrase - the version number follows it - so do not add a full stop and keep it open-ended."
+  },
+  "msg_about_made_with": {
+    "message": "Made with <3 by $1",
+    "description": "Page footer credit. $1 is the author's handle and must be reproduced exactly, never translated or transliterated. The '<3' is a heart emoticon - keep it, or substitute the target locale's equivalent heart symbol.",
+    "placeholders": {
+      "author": {
+        "content": "$1",
+        "example": "r4pture-Maik"
+      }
+    }
+  }
+}

@@ -20,7 +20,10 @@ import {
   STALE_SCAN_AFTER_MS,
   buildEnrichmentProgress,
   shouldPublishEnrichmentProgress,
-  isStaleScanProgress
+  isStaleScanProgress,
+  SCAN_PROGRESS_STEPS,
+  SCAN_PROGRESS_REASONS,
+  SCAN_PROGRESS_ERROR_CODES
 } from '../background/enrichment.js';
 
 /** The shared browse helpers, as published by shared/browse-parse.js. */
@@ -464,14 +467,29 @@ describe('Enrichment progress - buildEnrichmentProgress', () => {
   }
 
   test('carries only enrichment state, never a scan field', () => {
-    const progress = buildEnrichmentProgress(sampleJob(), 'Fetching metadata (1/2)...');
+    // AD-10: the second argument is an options object of machine codes. It used
+    // to be a positional `(statusText, done)` pair, and the record carried an
+    // English sentence that was persisted to storage and re-rendered verbatim.
+    const progress = buildEnrichmentProgress(sampleJob(), { step: 'scanning' });
 
     assert.equal(progress.kind, ENRICHMENT_PROGRESS_KIND);
     assert.equal(progress.isScanning, false, 'enrichment must not claim a scan is running');
     assert.equal(progress.latestTrack, null);
     assert.equal(progress.count, 0);
     assert.equal(progress.unique, 0);
-    assert.equal(progress.statusText, 'Fetching metadata (1/2)...');
+
+    // The structured progress fields replace `statusText`.
+    assert.equal(progress.step, 'scanning');
+    assert.equal(progress.processed, 1);
+    assert.equal(progress.total, 2);
+    assert.equal(progress.reason, null);
+    assert.equal(progress.errorCode, null);
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(progress, 'statusText'),
+      false,
+      'scanProgress must not carry an English sentence (AD-10)'
+    );
+
     assert.equal(progress.enrichmentTotal, 2);
     assert.equal(progress.enrichmentProcessed, 1);
     assert.equal(progress.enrichmentDone, false);
@@ -480,29 +498,60 @@ describe('Enrichment progress - buildEnrichmentProgress', () => {
   test('the terminal write is marked done', () => {
     const progress = buildEnrichmentProgress(
       sampleJob({ index: 2 }),
-      'complete: 2/2 tracklists resolved.',
-      true
+      { done: true, reason: 'complete' }
     );
 
     assert.equal(progress.enrichmentDone, true);
     assert.equal(progress.enrichmentProcessed, 2);
     assert.equal(progress.isScanning, false);
+
+    // `done` used to be the third positional argument; passing it there now
+    // leaves `enrichmentDone` false and the step stuck on 'scanning'.
+    assert.equal(progress.step, 'done', 'a done write must carry the terminal step');
+    assert.equal(progress.reason, 'complete');
+    assert.equal(progress.errorCode, null);
   });
 
   test('tolerates a job with no candidates', () => {
-    const progress = buildEnrichmentProgress({}, 'Fetching metadata...');
+    const progress = buildEnrichmentProgress({}, { step: 'scanning' });
 
     assert.equal(progress.isScanning, false);
     assert.equal(progress.enrichmentTotal, 0);
-    assert.equal(progress.statusText, 'Fetching metadata...');
+    assert.equal(progress.step, 'scanning');
+    assert.equal(progress.processed, 0);
+    assert.equal(progress.total, 0);
+    assert.equal(Object.prototype.hasOwnProperty.call(progress, 'statusText'), false);
   });
 
   test('stamps a heartbeat so staleness checks have a reference point', () => {
     const before = Date.now();
-    const progress = buildEnrichmentProgress(sampleJob(), 'Fetching metadata...');
+    const progress = buildEnrichmentProgress(sampleJob(), { step: 'scanning' });
 
     assert.ok(progress.updatedAt >= before, 'carries a fresh updatedAt');
     assert.equal(isStaleScanProgress(progress, before + 1000), false);
+  });
+
+  test('carries a machine error code, never a sentence, on failure', () => {
+    const progress = buildEnrichmentProgress(sampleJob(), {
+      done: true,
+      step: 'failed',
+      reason: 'navigatedAway',
+      errorCode: 'scanFailed'
+    });
+
+    assert.equal(progress.step, 'failed');
+    assert.equal(progress.reason, 'navigatedAway');
+    assert.equal(progress.errorCode, 'scanFailed');
+    assert.ok(SCAN_PROGRESS_ERROR_CODES.includes(progress.errorCode));
+    assert.ok(SCAN_PROGRESS_REASONS.includes(progress.reason));
+    assert.ok(SCAN_PROGRESS_STEPS.includes(progress.step));
+  });
+
+  test('the progress vocabularies are frozen', () => {
+    for (const vocabulary of [SCAN_PROGRESS_STEPS, SCAN_PROGRESS_REASONS, SCAN_PROGRESS_ERROR_CODES]) {
+      assert.equal(Object.isFrozen(vocabulary), true);
+      assert.throws(() => { vocabulary.push('injected'); }, TypeError);
+    }
   });
 });
 

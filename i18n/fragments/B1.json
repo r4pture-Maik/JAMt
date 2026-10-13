@@ -1,0 +1,62 @@
+{
+  "msg_popupTitle": {
+    "message": "YTMusic Counter",
+    "description": "Browser tab and popup title, and the brand name in the header. This is a product name (same value as the extName manifest key): keep it byte-identical in every locale and do NOT translate it."
+  },
+  "msg_refreshStats": {
+    "message": "Refresh Stats",
+    "description": "Tooltip and screen-reader label for the refresh icon button in the popup header, next to the brand. Reloads the play statistics from storage. Keep it short enough to work as a button tooltip."
+  },
+  "msg_counterTotalPlays": {
+    "message": "Total Plays",
+    "description": "Caption above the large total-play number in the popup's hero counter block."
+  },
+  "msg_totalDurationTooltip": {
+    "message": "Total continuous listening time",
+    "description": "Hover tooltip on the listening-time line under the total-plays counter (the line showing the clock emoji and a duration such as '0 min')."
+  },
+  "msg_pillSongs": {
+    "message": "Songs",
+    "description": "Label of the first stat pill in the popup hero block, under the number of distinct songs."
+  },
+  "msg_pillArtists": {
+    "message": "Artists",
+    "description": "Label of the second stat pill in the popup hero block, under the number of distinct artists."
+  },
+  "msg_pillAlbums": {
+    "message": "Albums",
+    "description": "Label of the third stat pill in the popup hero block, under the number of tracked albums."
+  },
+  "msg_pillCompleted": {
+    "message": "Completed",
+    "description": "Label of the fourth stat pill in the popup hero block, under the number of albums that have been listened to from start to finish at least once. This is a status word, not a noun; the same word marks a completed album elsewhere in the UI."
+  },
+  "msg_tabTopSongs": {
+    "message": "Top Songs",
+    "description": "Label of the first tab button in the popup's ranked-lists card (Top Songs / Top Artists / Top Albums)."
+  },
+  "msg_tabTopArtists": {
+    "message": "Top Artists",
+    "description": "Label of the second tab button in the popup's ranked-lists card (Top Songs / Top Artists / Top Albums)."
+  },
+  "msg_tabTopAlbums": {
+    "message": "Top Albums",
+    "description": "Label of the third tab button in the popup's ranked-lists card (Top Songs / Top Artists / Top Albums)."
+  },
+  "msg_emptySongs": {
+    "message": "No songs tracked yet.",
+    "description": "Empty-state message shown in the popup's Top Songs tab when no song statistics have been collected yet."
+  },
+  "msg_emptyArtists": {
+    "message": "No artists tracked yet.",
+    "description": "Empty-state message shown in the popup's Top Artists tab when no artist statistics have been collected yet."
+  },
+  "msg_emptyAlbums": {
+    "message": "No completed albums yet.",
+    "description": "Empty-state message shown in the popup's Top Albums tab when no album has been listened to from start to finish yet. This list only ever contains completed albums, so do not reword it as 'no albums tracked'; popup.js renders the same message for the same state and must use this exact key."
+  },
+  "msg_openOverview": {
+    "message": "Overview",
+    "description": "Label of the footer button in the popup that opens the full Details/Overview page."
+  }
+}

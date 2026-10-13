@@ -1,0 +1,157 @@
+{
+  "msg_content_badge_title": {
+    "message": "You have listened to this song $1 $2",
+    "description": "Tooltip on the play-count badge in the YouTube Music player bar. $1 is the play count as a bare number and $2 is the already-localized plural noun for it (\"1 play\", \"5 plays\") - the two are kept apart because the number is rendered in its own styled element. Treat $2 as a finished noun phrase.",
+    "placeholders": {
+      "n": { "content": "$1", "example": "5" },
+      "n2": { "content": "$2", "example": "plays" }
+    }
+  },
+  "msg_content_badge_play_one": {
+    "message": "play",
+    "description": "Singular noun shown beside the play count in the player-bar badge. Singular form of the counted \"play\". Deliberately carries no number: the count is a separate DOM element. French selects this form for 0 as well as 1, so it must read correctly at zero."
+  },
+  "msg_content_badge_play_zero": {
+    "message": "plays",
+    "description": "Plural noun shown beside the play count in the player-bar badge, form selected at zero by pt_BR. It uses the plural because the player-bar count reads as \"0 plays\"; if your language treats zero as a distinct form, use it here. No number is included in this string."
+  },
+  "msg_content_badge_play_other": {
+    "message": "plays",
+    "description": "Plural noun shown beside the play count in the player-bar badge. Carries no number - the count is a separate DOM element. en, de, es, it and fr all select this form for two or more plays."
+  },
+
+  "msg_content_count_play_one": {
+    "message": "$1 play",
+    "description": "Counted number of listening plays, singular. $1 is the play count. Used inside longer sentences where the noun has to agree with the number, so it must work as a phrase on its own.",
+    "placeholders": { "n": { "content": "$1", "example": "1" } }
+  },
+  "msg_content_count_play_zero": {
+    "message": "$1 plays",
+    "description": "Counted number of listening plays, form selected at zero by pt_BR. $1 is the play count. pt_BR ships this form even where the plural category for zero has been dropped from CLDR, so \"0 plays\" reads naturally.",
+    "placeholders": { "n": { "content": "$1", "example": "0" } }
+  },
+  "msg_content_count_play_other": {
+    "message": "$1 plays",
+    "description": "Counted number of listening plays, plural. $1 is the play count. en, de, es, it and fr all select this form for two or more plays. In music contexts \"play\" means one complete listen to a song, not a partial or a stream.",
+    "placeholders": { "n": { "content": "$1", "example": "37" } }
+  },
+
+  "msg_content_count_new_play_one": {
+    "message": "$1 new play",
+    "description": "Count of plays newly imported by a history sync, singular. $1 is the number of new plays. This is the \"new\" counterpart of msg_content_count_play and appears only in sync-result messages.",
+    "placeholders": { "n": { "content": "$1", "example": "1" } }
+  },
+  "msg_content_count_new_play_zero": {
+    "message": "$1 new plays",
+    "description": "Count of plays newly imported by a history sync, form selected at zero by pt_BR. $1 is the number of new plays.",
+    "placeholders": { "n": { "content": "$1", "example": "0" } }
+  },
+  "msg_content_count_new_play_other": {
+    "message": "$1 new plays",
+    "description": "Count of plays newly imported by a history sync, plural. $1 is the number of new plays. en, de, es, it and fr select this form for two or more.",
+    "placeholders": { "n": { "content": "$1", "example": "12" } }
+  },
+
+  "msg_content_count_song_one": {
+    "message": "$1 song",
+    "description": "Counted number of songs, singular. $1 is the song count. Used inside the history scanner's progress sentence. French selects this form for 0 as well as 1, so it must read correctly at zero.",
+    "placeholders": { "n": { "content": "$1", "example": "1" } }
+  },
+  "msg_content_count_song_zero": {
+    "message": "$1 songs",
+    "description": "Counted number of songs, form selected at zero by pt_BR. $1 is the song count.",
+    "placeholders": { "n": { "content": "$1", "example": "0" } }
+  },
+  "msg_content_count_song_other": {
+    "message": "$1 songs",
+    "description": "Counted number of songs, plural. $1 is the song count. Here \"song\" means an entry in the YouTube Music listening history.",
+    "placeholders": { "n": { "content": "$1", "example": "57" } }
+  },
+
+  "msg_content_scanner_title": {
+    "message": "Listening History Sync",
+    "description": "Title of the history-scanner overlay the extension injects onto the YouTube Music History page. Keep it short: it is the overlay's header, next to a logo. This is the extension's own feature name, not a translated brand - do NOT use the product name as a substitute."
+  },
+  "msg_content_scanner_metric_label": {
+    "message": "New Songs Synced",
+    "description": "Caption above the running counter in the history-scanner overlay. The number under it is how many songs the last sync imported."
+  },
+  "msg_content_scanner_ready": {
+    "message": "Ready to sync your listening history.",
+    "description": "Status line of the history-scanner overlay while it is idle and no sync has been started. A full sentence with a full stop."
+  },
+  "msg_content_scanner_force_rescan": {
+    "message": "Re-scan full history from the beginning",
+    "description": "Label of the checkbox in the history-scanner overlay. Checking it ignores the stored sync position and walks the entire listening history again."
+  },
+  "msg_content_scanner_start_sync": {
+    "message": "Start Sync",
+    "description": "Label of the main button in the history-scanner overlay. The play triangle glyph is added by the code and is not part of this string, so do not translate it - but it also does not need a verb; \"Sync\" alone is acceptable."
+  },
+  "msg_content_scanner_in_progress": {
+    "message": "Sync in Progress...",
+    "description": "Label the history-scanner overlay's start button takes while a sync is running. Keep the trailing ellipsis: it signals that the button is temporarily busy."
+  },
+  "msg_content_scanner_minimize": {
+    "message": "Minimize window",
+    "description": "Tooltip on the X button of the history-scanner overlay, in its expanded state. The button collapses the overlay rather than closing it."
+  },
+  "msg_content_scanner_restore": {
+    "message": "Restore window",
+    "description": "Tooltip on the history-scanner overlay's collapse button while the overlay is minimized."
+  },
+  "msg_content_scanner_toggle_minimize": {
+    "message": "Click to toggle minimize",
+    "description": "Tooltip on the header title of the history-scanner overlay, which is clickable and expands the overlay again after it has been minimized."
+  },
+
+  "msg_content_scan_scanning_history": {
+    "message": "Scanning your listening history...",
+    "description": "Status line of the history-scanner overlay when a scan starts and there is no stored sync position to compare against, so the whole history is being walked. Full sentence with a trailing ellipsis."
+  },
+  "msg_content_scan_checking_since": {
+    "message": "Checking for new plays since \"$1\"...",
+    "description": "Status line of the history-scanner overlay when a scan starts from a stored sync position. $1 is the title of the most recently synced song, as it appears on YouTube Music - it is remote data, inserted as plain text inside the quotes, and may itself contain quotation marks. Full sentence with a trailing ellipsis.",
+    "placeholders": { "n": { "content": "$1", "example": "Yellow Brick Road" } }
+  },
+  "msg_content_scan_boundary_progress": {
+    "message": "Scanning history... Loaded $1. Looking for sync boundary...",
+    "description": "Status line of the history-scanner overlay shown on each tick while the scanner scrolls the History page looking for the position where the last sync stopped. $1 arrives already pluralized, e.g. \"57 songs\". Treat $1 as a finished phrase. Three clauses, each with an ellipsis, matching the three stages of the scan.",
+    "placeholders": { "n": { "content": "$1", "example": "57 songs" } }
+  },
+  "msg_content_scan_saving": {
+    "message": "Saving $1...",
+    "description": "Status line of the history-scanner overlay while the plays found by a scan are being written to storage. $1 arrives already pluralized, e.g. \"12 plays\". Treat $1 as a finished phrase. Full sentence with a trailing ellipsis.",
+    "placeholders": { "n": { "content": "$1", "example": "12 plays" } }
+  },
+  "msg_content_scan_success": {
+    "message": "Success!",
+    "description": "Bolded lead-in of the history-scanner overlay's success status line, followed by a sentence saying how much was synced. Standalone fragment - no verb, no trailing punctuation beyond the exclamation mark."
+  },
+  "msg_content_scan_synced": {
+    "message": "Synced $1.",
+    "description": "Success status line of the history-scanner overlay when a sync finished normally. $1 arrives already pluralized, e.g. \"12 new plays\". Treat $1 as a finished phrase. Full sentence with a full stop.",
+    "placeholders": { "n": { "content": "$1", "example": "12 new plays" } }
+  },
+  "msg_content_scan_synced_reason": {
+    "message": "Synced $1. $2",
+    "description": "Success status line of the history-scanner overlay when the sync finished with something worth explaining - it hit the history limit, walked the whole list, or the page was left mid-scan. $1 arrives already pluralized (\"12 new plays\"); $2 is an already-localized short phrase explaining why, e.g. \"Reached the 200-song history limit.\" Treat both as finished sentences and keep the two-sentence shape.",
+    "placeholders": {
+      "n": { "content": "$1", "example": "12 new plays" },
+      "n2": { "content": "$2", "example": "Reached the 200-song history limit." }
+    }
+  },
+  "msg_content_scan_up_to_date": {
+    "message": "All caught up! No new plays found.",
+    "description": "Status line of the history-scanner overlay when a sync ran and the listening history contains nothing newer than the last sync. Full sentence with a full stop."
+  },
+  "msg_content_scan_empty_history": {
+    "message": "No tracks found in history.",
+    "description": "Status line of the history-scanner overlay when a scan found nothing at all and there was no previous sync to compare against. Full sentence with a full stop. Note this says \"tracks\" rather than \"songs\" for variety with the other scanner strings; keep the distinction if your language makes it."
+  },
+  "msg_content_scan_failed": {
+    "message": "Sync failed: $1",
+    "description": "Error status line of the history-scanner overlay. $1 is the underlying failure text from the extension's background process - an exception message, not a translatable sentence, so it is left in English inside the localized frame. Do not try to translate $1.",
+    "placeholders": { "n": { "content": "$1", "example": "Extension messaging timed out after 15000ms" } }
+  }
+}

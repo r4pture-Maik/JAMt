@@ -8,9 +8,10 @@
     "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=\"background/**\" --test-coverage-include=\"shared/**\" --test-coverage-include=\"content/**\" --test-coverage-exclude=\"tests/**\" tests/*.test.js",
     "test:gate": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 --test-coverage-include=\"background/**\" --test-coverage-include=\"shared/**\" --test-coverage-include=\"content/**\" --test-coverage-exclude=\"tests/**\" tests/*.test.js",
     "prepare": "git config core.hooksPath .githooks",
-    "build": "node tools/build.mjs",
+    "lint:firefox": "npx --yes web-ext@10.7.0 lint --source-dir dist/firefox",
+    "build": "node tools/build.mjs && npm run lint:firefox",
     "build:chrome": "node tools/build.mjs chrome",
-    "build:firefox": "node tools/build.mjs firefox"
+    "build:firefox": "node tools/build.mjs firefox && npm run lint:firefox"
   },
   "keywords": [
     "youtube-music",

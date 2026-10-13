@@ -6,39 +6,6 @@
 import { makeSongKey, makeArtistKey, makeAlbumKey, withStorageLock, PENDING_DURATIONS_KEY } from './storage.js';
 
 /**
- * Formats a duration in seconds into a human-readable display string.
- * Examples:
- * - 0s -> "0 min"
- * - 45s -> "< 1 min"
- * - 120s -> "2 mins"
- * - 3665s -> "1 hr 1 min"
- * - 52080s -> "14 hrs 28 mins"
- *
- * @param {number} totalSeconds
- * @returns {string}
- */
-export function formatDuration(totalSeconds) {
-  const sec = Math.max(0, Math.floor(totalSeconds || 0));
-  if (sec === 0) return '0 min';
-  if (sec < 60) return '< 1 min';
-
-  const totalMinutes = Math.floor(sec / 60);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  if (hours === 0) {
-    return `${minutes} ${minutes === 1 ? 'min' : 'mins'}`;
-  }
-
-  const hrStr = `${hours} ${hours === 1 ? 'hr' : 'hrs'}`;
-  if (minutes === 0) {
-    return hrStr;
-  }
-  const minStr = `${minutes} ${minutes === 1 ? 'min' : 'mins'}`;
-  return `${hrStr} ${minStr}`;
-}
-
-/**
  * Records a listening duration tick (delta) and updates storage.
  *
  * @param {object} payload

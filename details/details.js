@@ -4,8 +4,17 @@
  * and a 3-step confirmation flow for erasing all extension data.
  */
 
+// I-1: shared/i18n.js is a side-effect import and MUST stay above the messaging
+// import, which is what keeps the literal `YTMCMessaging` on this file.
+import '../shared/i18n.js';
 import { createMatchIndex, matchTrackPlayCountWithIndex } from '../background/scoring.js';
-import { ENRICHMENT_PROGRESS_KIND, isStaleScanProgress } from '../background/enrichment.js';
+import {
+  ENRICHMENT_PROGRESS_KIND,
+  isStaleScanProgress,
+  SCAN_PROGRESS_STEPS,
+  SCAN_PROGRESS_REASONS,
+  SCAN_PROGRESS_ERROR_CODES
+} from '../background/enrichment.js';
 import { makeAlbumKey } from '../background/storage.js';
 import { thumbnailCache } from '../background/thumbnails.js';
 import '../shared/messaging.js';
@@ -13,6 +22,18 @@ import '../shared/messaging.js';
 const extBrowser = typeof browser !== 'undefined' ? browser : chrome;
 
 const { sendRuntimeMessage, sendTabMessage } = globalThis.YTMCMessaging;
+
+/**
+ * Localization runtime.
+ *
+ * The side-effect import above has already run by the time this module body is
+ * evaluated, so the global is guaranteed to exist here. The helpers are pulled
+ * out once because they are closures over the *mutable* resolved locale inside
+ * shared/i18n.js - destructuring them keeps every call site reading naturally
+ * without ever caching a stale locale.
+ */
+const YTMCI18n = globalThis.YTMCI18n;
+const { t, plural, formatNumber, formatBytes, formatDuration, displayArtist } = YTMCI18n;
 
 const YOUTUBE_MUSIC_HISTORY_URL = 'https://music.youtube.com/history';
 
@@ -63,6 +84,10 @@ const elements = {
   exportLibraryJsonBtn: document.getElementById('exportLibraryJsonBtn'),
   importLibraryJsonInput: document.getElementById('importLibraryJsonInput'),
   importExportStatusMessage: document.getElementById('importExportStatusMessage'),
+
+  // In-app language override (AD-4 / AD-9). The <select> markup lives in
+  // details.html; only the option list and the change handler are built here.
+  languageSelect: document.getElementById('languageSelect'),
 
   // 3-Step Wipe Container & Views
   wipeStep0: document.getElementById('wipeStep0'),
@@ -128,10 +153,10 @@ function setupTabs() {
   tabs.forEach(({ btn, panel }) => {
     if (!btn || !panel) return;
     btn.addEventListener('click', () => {
-      tabs.forEach(t => {
-        t.btn.classList.remove('active');
-        t.btn.setAttribute('aria-selected', 'false');
-        t.panel.classList.remove('active');
+      tabs.forEach((tab) => {
+        tab.btn.classList.remove('active');
+        tab.btn.setAttribute('aria-selected', 'false');
+        tab.panel.classList.remove('active');
       });
 
       btn.classList.add('active');
@@ -139,6 +164,52 @@ function setupTabs() {
       panel.classList.add('active');
     });
   });
+}
+
+/* ==========================================================================
+   In-App Language Override (AD-4 / AD-9)
+   ========================================================================== */
+
+/**
+ * Wires the language picker's change handler and reflects the stored override.
+ *
+ * details.html ships one <option> per supported locale (endonyms, never run
+ * through the catalog) plus the follow-the-browser option, so nothing is built
+ * here. Idempotent: the change listener is attached once.
+ *
+ * @returns {void}
+ */
+function setupLanguageSelect() {
+  const select = elements.languageSelect;
+  if (!select) return;
+
+  syncLanguageSelect();
+
+  if (select.dataset.languageListenerBound === 'true') return;
+  select.dataset.languageListenerBound = 'true';
+  select.addEventListener('change', () => {
+    // A1's setLocale() REJECTS on unsupported input rather than coercing it, so
+    // this catch is load-bearing: an unhandled rejection here would surface as
+    // an uncaught promise rejection with the picker left showing a language the
+    // page is not actually rendering in.
+    YTMCI18n.setLocale(select.value).then(() => {
+      // Nothing to do: shared/i18n.js has already notified subscribers and
+      // re-run localizeDocument(). The re-render handler below does the rest.
+    }).catch((err) => {
+      console.warn('[Details] Could not apply the language override:', err);
+      // Put the control back in sync with the locale actually in force.
+      syncLanguageSelect();
+    });
+  });
+}
+
+/** Reflects the stored override in the picker; no override means "follow browser". */
+function syncLanguageSelect() {
+  const select = elements.languageSelect;
+  if (!select) return;
+  const override = YTMCI18n.getOverride();
+  const supported = YTMCI18n.SUPPORTED_LOCALES.indexOf(override) !== -1;
+  select.value = supported ? override : '';
 }
 
 /* ==========================================================================
@@ -234,12 +305,19 @@ async function fetchStatsDirectlyFromStorage() {
   }
 }
 
+/** Last stats payload rendered, so a locale switch can re-format it without a reload. */
+let lastRenderedStats = null;
+
 function renderStats(stats) {
   if (!stats) return;
+  lastRenderedStats = stats;
+
+  // Numbers, durations and byte sizes are formatted in the UI (not the
+  // background) so they follow the active locale, including the override.
 
   // Primary Row: Total Songs Listened
   if (elements.totalSongsListened) {
-    const formattedCount = (stats.totalPlays || 0).toLocaleString();
+    const formattedCount = formatNumber(stats.totalPlays || 0);
     const prev = elements.totalSongsListened.textContent;
     if (prev !== formattedCount) {
       elements.totalSongsListened.textContent = formattedCount;
@@ -250,22 +328,24 @@ function renderStats(stats) {
 
   // Supporting metrics
   if (elements.uniqueSongsStat) {
-    elements.uniqueSongsStat.textContent = (stats.uniqueSongsCount || 0).toLocaleString();
+    elements.uniqueSongsStat.textContent = formatNumber(stats.uniqueSongsCount || 0);
   }
   if (elements.totalTimeStat) {
-    elements.totalTimeStat.textContent = stats.formattedTotalTime || '0 min';
+    // The background ships raw `totalListeningSeconds`; missing seconds (e.g.
+    // the storage-fallback path) render as "0 min".
+    elements.totalTimeStat.textContent = formatDuration(stats.totalListeningSeconds || 0);
   }
   if (elements.uniqueArtistsStat) {
-    elements.uniqueArtistsStat.textContent = (stats.uniqueArtistsCount || 0).toLocaleString();
+    elements.uniqueArtistsStat.textContent = formatNumber(stats.uniqueArtistsCount || 0);
   }
   if (elements.trackedAlbumsStat) {
-    elements.trackedAlbumsStat.textContent = (stats.uniqueAlbumsCount || 0).toLocaleString();
+    elements.trackedAlbumsStat.textContent = formatNumber(stats.uniqueAlbumsCount || 0);
   }
   if (elements.singlesStat) {
-    elements.singlesStat.textContent = (stats.singlesCount || 0).toLocaleString();
+    elements.singlesStat.textContent = formatNumber(stats.singlesCount || 0);
   }
   if (elements.completedAlbumsStat) {
-    elements.completedAlbumsStat.textContent = (stats.completedAlbumsCount || 0).toLocaleString();
+    elements.completedAlbumsStat.textContent = formatNumber(stats.completedAlbumsCount || 0);
   }
 
   // Render Albums Breakdown List
@@ -280,20 +360,33 @@ function computeAlbumStatusText(album, uniqueTracks, completePlays) {
     let nextProgress = 0;
     if (album.allTracks && album.totalTracks) {
       const matchIndex = createMatchIndex(album.tracksListened);
-      for (const t of album.allTracks) {
-        if (matchTrackPlayCountWithIndex(t, matchIndex) > effectivePlays) nextProgress++;
+      for (const trackTitle of album.allTracks) {
+        if (matchTrackPlayCountWithIndex(trackTitle, matchIndex) > effectivePlays) nextProgress++;
       }
     }
     if (nextProgress > 0 && album.totalTracks) {
-      return `★ Completed (${effectivePlays}x) • Next: ${nextProgress}/${album.totalTracks}`;
-    } else {
-      return `★ Completed (${effectivePlays}x)`;
+      // One message, not two joined by a separator: "Next:" and the bullet are
+      // both part of the sentence, and word order is not the same in every
+      // locale.
+      return t('msg_album_status_completed_next', [effectivePlays, nextProgress, album.totalTracks]);
     }
-  } else if (album.totalTracks) {
-    return `${uniqueTracks}/${album.totalTracks} songs (${Math.round((uniqueTracks / album.totalTracks) * 100)}%)`;
-  } else {
-    return `${uniqueTracks} ${uniqueTracks === 1 ? 'song' : 'songs'} played`;
+    return t('msg_album_status_completed', [effectivePlays]);
   }
+  if (album.totalTracks) {
+    const percent = Math.round((uniqueTracks / album.totalTracks) * 100);
+    return t('msg_album_status_progress', [uniqueTracks, album.totalTracks, percent]);
+  }
+  return plural('msg_album_status_played_songs', uniqueTracks);
+}
+
+/**
+ * Artist text for an album card: the part before any "•" separator, with the
+ * stored 'Unknown Artist' sentinel shown in the user's language. A missing
+ * artist stays empty so no subtitle is rendered.
+ */
+function cleanAlbumArtist(artist) {
+  const name = (artist || '').split('•')[0].trim();
+  return name ? displayArtist(name) : '';
 }
 
 function updateCardInPlace(card, album) {
@@ -305,7 +398,7 @@ function updateCardInPlace(card, album) {
   const isCompleted = Boolean(completePlays > 0);
   const statusText = computeAlbumStatusText(album, uniqueTracks, completePlays);
 
-  const cleanArtistName = (album.artist || '').split('•')[0].trim();
+  const cleanArtistName = cleanAlbumArtist(album.artist);
   const hasDistinctArtist = cleanArtistName && cleanArtistName.toLowerCase() !== (album.album || '').toLowerCase();
   // No escaping needed: this is written through textContent below, where the
   // browser escapes by construction. Escaping here would show "&amp;" literally.
@@ -325,7 +418,17 @@ function updateCardInPlace(card, album) {
   // Update artist and plays count
   const artistEl = card.querySelector('.album-artist');
   if (artistEl) {
-    artistEl.textContent = `${artistSubtitle}${album.playCount} total ${album.playCount === 1 ? 'play' : 'plays'}`;
+    artistEl.textContent = `${artistSubtitle}${plural('msg_album_total_plays', Number(album.playCount) || 0)}`;
+  }
+
+  // Update the toggle label too. The expansion state is local DOM state that
+  // loadStats() never touches, so without this a locale switch would leave
+  // every already-expanded card reading "View Tracks" in the old language.
+  const toggleBtn = card.querySelector('.btn-toggle-album-tracks');
+  if (toggleBtn) {
+    const expandedSection = card.querySelector('.album-card-expanded');
+    const isExpanded = Boolean(expandedSection && expandedSection.classList.contains('active'));
+    toggleBtn.textContent = isExpanded ? t('msg_album_hide_tracks') : t('msg_album_view_tracks');
   }
 
   // Update completion star & badge
@@ -335,11 +438,15 @@ function updateCardInPlace(card, album) {
     if (isCompleted && !star) {
       star = document.createElement('span');
       star.className = 'album-cover-star';
-      star.title = 'Completed Album';
       star.textContent = '★';
       container.appendChild(star);
     } else if (!isCompleted && star) {
       star.remove();
+    }
+    // Set every time, not just on creation: `title` is translatable and a
+    // re-render in a new locale must not keep the old one.
+    if (isCompleted && star) {
+      star.title = t('msg_album_completed_title');
     }
 
     const badge = container.querySelector('.album-icon-badge');
@@ -383,10 +490,10 @@ function renderTrackChips(tracksContainer, currentAlbum) {
   const header = tracksContainer.parentElement ? tracksContainer.parentElement.querySelector('.album-tracks-header') : null;
   if (header) {
     if (hasAllTracks) {
-      header.textContent = `Album tracks (${currentAlbum.allTracks.length}):`;
+      header.textContent = t('msg_album_tracks_header', [currentAlbum.allTracks.length]);
     } else {
       const count = Object.keys(listenedObj).length || 1;
-      header.textContent = `Songs played (${count}):`;
+      header.textContent = t('msg_album_played_songs_header', [count]);
     }
   }
 
@@ -437,7 +544,7 @@ function wireAlbumCardEvents(card, album, cardId) {
   toggleBtn.addEventListener('click', async () => {
     const currentAlbum = card._albumData || album;
     const isActive = expandedSection.classList.toggle('active');
-    toggleBtn.textContent = isActive ? 'Hide Tracks' : 'View Tracks';
+    toggleBtn.textContent = isActive ? t('msg_album_hide_tracks') : t('msg_album_view_tracks');
 
     if (isActive) {
       renderTrackChips(tracksContainer, currentAlbum);
@@ -461,7 +568,7 @@ function wireAlbumCardEvents(card, album, cardId) {
               const isCompleted = Boolean((fullAlbum.completePlays || 0) > 0);
               if (isCompleted) {
                 pill.classList.add('completed');
-                pill.textContent = `★ Completed (${fullAlbum.completePlays}x)`;
+                pill.textContent = t('msg_album_status_completed', [fullAlbum.completePlays]);
                 const badge = card.querySelector('.album-icon-badge');
                 if (badge) {
                   badge.classList.add('completed');
@@ -469,7 +576,7 @@ function wireAlbumCardEvents(card, album, cardId) {
                 }
               } else {
                 pill.classList.remove('completed');
-                pill.textContent = `${uniqueTracks}/${fullAlbum.totalTracks} songs (${pct}%)`;
+                pill.textContent = t('msg_album_status_progress', [uniqueTracks, fullAlbum.totalTracks, pct]);
               }
             }
             loadStatsDebounced(100);
@@ -494,7 +601,7 @@ function buildAlbumCard(album, idx) {
   const isCompleted = Boolean(completePlays > 0);
   const statusText = computeAlbumStatusText(album, uniqueTracks, completePlays);
 
-  const cleanArtistName = (album.artist || '').split('•')[0].trim();
+  const cleanArtistName = cleanAlbumArtist(album.artist);
   const hasDistinctArtist = cleanArtistName && cleanArtistName.toLowerCase() !== (album.album || '').toLowerCase();
   const artistSubtitle = hasDistinctArtist ? `${cleanArtistName} • ` : '';
 
@@ -517,7 +624,7 @@ function buildAlbumCard(album, idx) {
   if (isCompleted) {
     const star = document.createElement('span');
     star.className = 'album-cover-star';
-    star.title = 'Completed Album';
+    star.title = t('msg_album_completed_title');
     star.textContent = '★';
     artwork.appendChild(star);
   }
@@ -534,7 +641,7 @@ function buildAlbumCard(album, idx) {
   const artistEl = document.createElement('div');
   artistEl.className = 'album-artist';
   artistEl.title = cleanArtistName || album.album || '';
-  artistEl.textContent = `${artistSubtitle}${album.playCount} total ${album.playCount === 1 ? 'play' : 'plays'}`;
+  artistEl.textContent = `${artistSubtitle}${plural('msg_album_total_plays', Number(album.playCount) || 0)}`;
   metaText.appendChild(artistEl);
 
   const cardLeft = document.createElement('div');
@@ -549,7 +656,7 @@ function buildAlbumCard(album, idx) {
   const toggleBtn = document.createElement('button');
   toggleBtn.type = 'button';
   toggleBtn.className = 'btn-toggle-album-tracks';
-  toggleBtn.textContent = 'View Tracks';
+  toggleBtn.textContent = t('msg_album_view_tracks');
 
   const cardRight = document.createElement('div');
   cardRight.className = 'album-card-right';
@@ -572,8 +679,8 @@ function buildAlbumCard(album, idx) {
   // script-src and object-src, not style-src), so this is tidying, not a fix.
   tracksHeader.textContent =
     album.allTracks && album.allTracks.length > 0
-      ? `Album tracks (${album.allTracks.length}):`
-      : `Songs played (${uniqueTracks}):`;
+      ? t('msg_album_tracks_header', [album.allTracks.length])
+      : t('msg_album_played_songs_header', [uniqueTracks]);
 
   const tracksGrid = document.createElement('div');
   tracksGrid.className = 'tracks-list-grid';
@@ -608,9 +715,13 @@ function renderAlbumsBreakdown() {
   if (elements.toggleAllAlbumsBtn && elements.toggleAllAlbumsText) {
     if (totalCount > 3) {
       elements.toggleAllAlbumsBtn.style.display = 'inline-flex';
-      elements.toggleAllAlbumsText.textContent = showingAllAlbums 
-        ? 'Show Top 3 Only' 
-        : `Show All (${totalCount})`;
+      // `msg_details_albums_show_top3_only` / `msg_details_albums_show_all_count`
+      // are the authority keys for #toggleAllAlbumsText: the same span is
+      // re-rendered from JS on every stats refresh, so the HTML default and
+      // these two must agree on one key each, not three.
+      elements.toggleAllAlbumsText.textContent = showingAllAlbums
+        ? t('msg_details_albums_show_top3_only')
+        : t('msg_details_albums_show_all_count', [formatNumber(totalCount)]);
     } else {
       elements.toggleAllAlbumsBtn.style.display = 'none';
     }
@@ -619,10 +730,10 @@ function renderAlbumsBreakdown() {
   if (elements.albumsSectionSubtext) {
     if (totalCount > 3) {
       elements.albumsSectionSubtext.textContent = showingAllAlbums
-        ? `Showing all ${totalCount} tracked albums.`
-        : `Showing Top 3 most played albums (${totalCount} total tracked).`;
+        ? t('msg_details_albums_subtext_showing_all', [formatNumber(totalCount)])
+        : t('msg_details_albums_subtext_showing_top3', [formatNumber(totalCount)]);
     } else {
-      elements.albumsSectionSubtext.textContent = `See which songs you've heard from each album and track your progress.`;
+      elements.albumsSectionSubtext.textContent = t('msg_details_albums_subtext_default');
     }
   }
 
@@ -630,7 +741,7 @@ function renderAlbumsBreakdown() {
     elements.albumsBreakdownList.textContent = '';
     const emptyCard = document.createElement('div');
     emptyCard.className = 'empty-state-card';
-    emptyCard.textContent = 'No albums tracked yet. Sync your listening history or play an album to get started.';
+    emptyCard.textContent = t('msg_details_albums_empty_state');
     elements.albumsBreakdownList.appendChild(emptyCard);
     return;
   }
@@ -705,7 +816,6 @@ function applyCoverToCard(container, url, albumName) {
   if (!img) {
     img = document.createElement('img');
     img.className = 'album-cover-img';
-    img.alt = albumName || 'Album';
     img.onerror = function () {
       this.style.display = 'none';
       if (badge) badge.style.display = 'flex';
@@ -720,6 +830,13 @@ function applyCoverToCard(container, url, albumName) {
       container.appendChild(img);
     }
   }
+
+  // AD-8: 'Album' is the persisted sentinel this used to hardcode, and it is
+  // also a real album name a track can carry - so it is mapped to a message at
+  // render time only and never rewritten on the way into storage. Assigned
+  // through the `alt` property (I-8: no innerHTML, and the album name is remote
+  // data that can never terminate the attribute early).
+  img.alt = albumName || t('msg_album_cover_alt');
 
   img.src = url;
   img.style.display = 'block';
@@ -1011,6 +1128,7 @@ async function executeDataWipe() {
     setWipeStep(0);
 
     // 4. Update sync status UI
+    lastHistorySyncState = null;
     renderHistorySyncStatus(null);
     clearScanProgressCache();
     renderScanProgress(null);
@@ -1028,6 +1146,7 @@ async function executeDataWipe() {
     } catch (_) {}
     refreshThumbnailCacheStats();
     setWipeStep(0);
+    lastHistorySyncState = null;
     renderHistorySyncStatus(null);
     clearScanProgressCache();
     renderScanProgress(null);
@@ -1049,12 +1168,144 @@ function hideSuccessAlert() {
   elements.deleteSuccessAlert.style.display = 'none';
 }
 
-function sanitizeStatusText(text) {
-  if (!text) return '';
-  return text
-    .replace(/\s*\(\s*reached\s*200[\s\-]song\s*limit\s*\)/gi, '')
-    .replace(/\s*reached\s*200[\s\-]song\s*limit/gi, '')
-    .trim();
+/* ==========================================================================
+   Scan Progress Vocabulary (AD-10)
+
+   `scanProgress` carries machine codes, never sentences: the background cannot
+   honour the in-app language override, and a sentence written there would be
+   persisted into storage and re-rendered to whoever opens the page next.
+
+   `sanitizeStatusText()` used to regex the English string "reached 200-song
+   limit" back out of `scanProgress.statusText` so the panel would not show it.
+   That whole problem is gone at the source: the limit is now the machine code
+   `reason: 'fullHistory'`, mapped here to `msg_scan_reason_full_history`.
+
+   The safety property the regex was buying - never render an untrusted,
+   persisted English sentence produced by another context - is now structural
+   rather than defensive. The line below can only ever be assembled from static
+   catalog lookups keyed by values in SCAN_PROGRESS_STEPS / _REASONS /
+   _ERROR_CODES, plus numbers. There is no code path that reaches a free-text
+   field, so there is nothing left to strip.
+   ========================================================================== */
+
+/** `scanProgress.step` -> message key, for a history scan. */
+const SCAN_STEP_KEYS = {
+  scanning: 'msg_scan_step_scanning',
+  boundary: 'msg_scan_step_boundary',
+  importing: 'msg_scan_step_importing',
+  saving: 'msg_scan_step_saving',
+  done: 'msg_scan_step_done',
+  failed: 'msg_scan_step_failed'
+};
+
+/**
+ * `scanProgress.step` -> message key, for the album-metadata enrichment pump.
+ *
+ * Enrichment emits the same two `step` codes as a scan ('scanning', 'done') but
+ * a scan and a metadata backfill are different activities, so it gets its own
+ * wording rather than inheriting "Scanning your history".
+ */
+const ENRICHMENT_STEP_KEYS = {
+  scanning: 'msg_enrich_step_scanning',
+  done: 'msg_enrich_step_done'
+};
+
+/**
+ * A step that exists only in this file.
+ *
+ * The optimistic payload written by setupHistoryScannerLauncher() (before the
+ * content script has reported anything) is never persisted - it lives in the
+ * module-level `lastScanProgress` and is overwritten by the first real storage
+ * read - so extending the vocabulary here cannot widen SCAN_PROGRESS_STEPS for
+ * the producers that are contractually limited to it.
+ */
+const LOCAL_CONNECTING_STEP = 'connecting';
+
+/** `scanProgress.reason` -> message key. */
+const SCAN_REASON_KEYS = {
+  upToDate: 'msg_scan_reason_up_to_date',
+  complete: 'msg_scan_reason_complete',
+  fullHistory: 'msg_scan_reason_full_history',
+  endOfHistory: 'msg_scan_reason_end_of_history',
+  navigatedAway: 'msg_scan_reason_navigated_away'
+};
+
+/** `scanProgress.errorCode` -> message key. */
+const SCAN_ERROR_KEYS = {
+  untrustedSource: 'msg_scan_error_untrusted_source',
+  scanFailed: 'msg_scan_error_scan_failed'
+};
+
+/** True for a code the background is actually declared to emit. */
+function isKnownScanCode(codes, value) {
+  return typeof value === 'string' && Array.isArray(codes) && codes.indexOf(value) !== -1;
+}
+
+/**
+ * Reads the play counter, tolerating the record shape.
+ *
+ * `plays` is the structured field; `count` is the legacy alias kept only so a
+ * `scanProgress` written by an older build still renders a number instead of
+ * "NaN". `??` rather than `||` so a deliberate `plays: 0` (enrichment sets it to
+ * null and never 0) is not silently replaced.
+ *
+ * @param {object} progress
+ * @returns {number}
+ */
+function scanPlayCount(progress) {
+  const raw = progress && progress.plays !== undefined && progress.plays !== null
+    ? progress.plays
+    : progress && progress.count;
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+/** Unique-song counter, same null-safe collapse as {@link scanPlayCount}. */
+function scanUniqueCount(progress) {
+  const raw = progress && progress.uniqueSongs !== undefined && progress.uniqueSongs !== null
+    ? progress.uniqueSongs
+    : progress && progress.unique;
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+/**
+ * Composes the scanner's status sentence from the structured fields.
+ *
+ * Precedence is deliberate: an error outranks a reason, a reason outranks the
+ * step. A scan that failed also has a `step`, and a scan that stopped at the
+ * 200-song boundary has both a terminal step and a reason - and in each case the
+ * more specific code is the one that explains what the user is looking at.
+ *
+ * @param {object} progress A `scanProgress` payload.
+ * @returns {string} '' when the payload carries no code we can render.
+ */
+function composeScanStatus(progress) {
+  if (!progress) return '';
+
+  if (isKnownScanCode(SCAN_PROGRESS_ERROR_CODES, progress.errorCode)) {
+    return t(SCAN_ERROR_KEYS[progress.errorCode]);
+  }
+  if (isKnownScanCode(SCAN_PROGRESS_REASONS, progress.reason)) {
+    return t(SCAN_REASON_KEYS[progress.reason]);
+  }
+
+  const steps = progress.kind === ENRICHMENT_PROGRESS_KIND ? ENRICHMENT_STEP_KEYS : SCAN_STEP_KEYS;
+  let stepKey = '';
+  if (isKnownScanCode(SCAN_PROGRESS_STEPS, progress.step)) {
+    stepKey = steps[progress.step] || SCAN_STEP_KEYS[progress.step];
+  } else if (progress.step === LOCAL_CONNECTING_STEP) {
+    stepKey = 'msg_settings_scanner_connecting';
+  }
+  if (!stepKey) return '';
+
+  const processed = Number(progress.processed);
+  const total = Number(progress.total);
+  const hasFraction = Number.isFinite(processed) && Number.isFinite(total) && total > 0;
+
+  return hasFraction
+    ? t('msg_scan_step_progress', [t(stepKey), formatNumber(processed), formatNumber(total)])
+    : t(stepKey);
 }
 
 /* ==========================================================================
@@ -1068,7 +1319,7 @@ function renderScanProgress(scanProgress) {
     return;
   }
 
-  const cleanStatus = sanitizeStatusText(scanProgress.statusText);
+  const composedStatus = composeScanStatus(scanProgress);
 
   // Album-metadata enrichment shares this panel but is not a sync. It must never
   // be presented as one, or "Fetching metadata..." reads as a scan that is still
@@ -1078,22 +1329,22 @@ function renderScanProgress(scanProgress) {
     elements.scannerLivePanel.style.display = 'flex';
     if (elements.launchHistoryScannerBtn) {
       elements.launchHistoryScannerBtn.disabled = false;
-      elements.launchHistoryScannerBtn.textContent = 'Start Sync';
+      elements.launchHistoryScannerBtn.textContent = t('msg_scanner_start_sync');
     }
     if (elements.scannerConfigSpinner) elements.scannerConfigSpinner.classList.toggle('done', done);
     if (elements.scannerLiveBadge) {
-      elements.scannerLiveBadge.textContent = done ? 'Metadata Ready' : 'Fetching Metadata';
+      elements.scannerLiveBadge.textContent = done ? t('msg_scanner_metadata_ready') : t('msg_scanner_metadata_fetching');
       elements.scannerLiveBadge.classList.toggle('badge-done', done);
     }
     if (elements.scannerLiveCounts) {
       const processed = scanProgress.enrichmentProcessed || 0;
       const total = scanProgress.enrichmentTotal || 0;
       elements.scannerLiveCounts.textContent = total > 0
-        ? `${processed}/${total} albums`
-        : 'Resolving album metadata';
+        ? t('msg_scanner_enrich_progress', [formatNumber(processed), formatNumber(total)])
+        : t('msg_scanner_enrich_resolving');
     }
     if (elements.scannerImportingTrack) {
-      elements.scannerImportingTrack.textContent = cleanStatus;
+      elements.scannerImportingTrack.textContent = composedStatus;
     }
     return;
   }
@@ -1103,53 +1354,71 @@ function renderScanProgress(scanProgress) {
   // button permanently disabled, since the content script that would have
   // cleared the flag died with its tab.
   const interrupted = isStaleScanProgress(scanProgress);
+  // Same shape as before (status, then the "reopen the history page" advice),
+  // but both halves are catalog strings now, so neither can be an English
+  // fragment left over from another context.
   const panelStatus = interrupted
-    ? `${cleanStatus || 'Scan interrupted'} (reopen the history page to resume)`
-    : cleanStatus;
+    ? (composedStatus
+      ? t('msg_scanner_interrupted_hint', [composedStatus])
+      : t('msg_scanner_interrupted'))
+    : composedStatus;
 
   if (scanProgress.isScanning && !interrupted) {
     elements.scannerLivePanel.style.display = 'flex';
     if (elements.launchHistoryScannerBtn) {
       elements.launchHistoryScannerBtn.disabled = true;
-      elements.launchHistoryScannerBtn.textContent = 'Sync in Progress...';
+      elements.launchHistoryScannerBtn.textContent = t('msg_scanner_in_progress');
     }
     if (elements.scannerConfigSpinner) elements.scannerConfigSpinner.classList.remove('done');
     if (elements.scannerLiveBadge) {
-      elements.scannerLiveBadge.textContent = 'Syncing History...';
+      elements.scannerLiveBadge.textContent = t('msg_settings_scanner_badge_syncing');
       elements.scannerLiveBadge.classList.remove('badge-done');
     }
     if (elements.scannerLiveCounts) {
-      const plays = scanProgress.count || 0;
-      const unique = scanProgress.unique || 0;
-      elements.scannerLiveCounts.textContent = `${plays} ${plays === 1 ? 'play' : 'plays'} (${unique} songs)`;
+      // Both arguments arrive as finished, already-pluralized phrases so the
+      // noun agrees with the number in every locale: a single message with a
+      // literal noun cannot do that for pt_BR zero / fr one-covers-zero.
+      elements.scannerLiveCounts.textContent = t('msg_scanner_live_counts', [
+        plural('msg_count_play', scanPlayCount(scanProgress)),
+        plural('msg_count_song', scanUniqueCount(scanProgress))
+      ]);
     }
     if (elements.scannerImportingTrack) {
-      if (scanProgress.latestTrack && scanProgress.latestTrack.title) {
-        const t = scanProgress.latestTrack;
-        elements.scannerImportingTrack.textContent = `🎵 "${t.title}" • ${t.artist || 'Unknown'}${t.album ? ` (${t.album})` : ''}`;
+      const latest = scanProgress.latestTrack;
+      if (latest && latest.title) {
+        // Remote metadata, assigned as text: I-8 forbids building this from
+        // markup, and textContent makes an injected title inert by construction.
+        // The stored 'Unknown Artist' sentinel is mapped at render time only.
+        const artist = displayArtist(latest.artist);
+        elements.scannerImportingTrack.textContent = latest.album
+          ? t('msg_scanner_now_playing_album', [latest.title, artist, latest.album])
+          : t('msg_scanner_now_playing', [latest.title, artist]);
       } else {
-        elements.scannerImportingTrack.textContent = panelStatus || 'Finding songs in history...';
+        elements.scannerImportingTrack.textContent = panelStatus || t('msg_scanner_finding_songs');
       }
     }
   } else if (panelStatus) {
     elements.scannerLivePanel.style.display = 'flex';
     if (elements.launchHistoryScannerBtn) {
       elements.launchHistoryScannerBtn.disabled = false;
-      elements.launchHistoryScannerBtn.textContent = 'Start Sync';
+      elements.launchHistoryScannerBtn.textContent = t('msg_scanner_start_sync');
     }
     if (elements.scannerConfigSpinner) {
       // An interrupted scan has no verdict to show, so the spinner keeps turning.
       elements.scannerConfigSpinner.classList.toggle('done', !interrupted);
     }
     if (elements.scannerLiveBadge) {
+      const plays = scanPlayCount(scanProgress);
+      // `reason: 'upToDate'` is the code that actually means "nothing new"; the
+      // count is kept as a fallback for a terminal record that predates it.
+      const upToDate = scanProgress.reason === 'upToDate' || (plays === 0 && !scanProgress.errorCode);
       elements.scannerLiveBadge.textContent = interrupted
-        ? 'Scan Interrupted'
-        : (scanProgress.count === 0 ? 'Up to Date' : 'Completed');
+        ? t('msg_settings_scanner_badge_interrupted')
+        : (scanProgress.errorCode ? t('msg_settings_scanner_badge_failed') : (upToDate ? t('msg_settings_scanner_badge_up_to_date') : t('msg_settings_scanner_badge_complete')));
       elements.scannerLiveBadge.classList.toggle('badge-done', !interrupted);
     }
     if (elements.scannerLiveCounts) {
-      const plays = scanProgress.count || 0;
-      elements.scannerLiveCounts.textContent = plays === 1 ? '1 play synced' : `${plays} plays synced`;
+      elements.scannerLiveCounts.textContent = plural('msg_scanner_plays_synced', scanPlayCount(scanProgress));
     }
     if (elements.scannerImportingTrack) {
       elements.scannerImportingTrack.textContent = panelStatus;
@@ -1203,16 +1472,41 @@ async function checkScanProgress() {
   }
 }
 
+/**
+ * Relative-time formatter, memoized per locale.
+ *
+ * `Intl.RelativeTimeFormat` rather than a `"$1 minutes ago"` message because
+ * word order differs ("vor 5 Minuten", "há 5 minutos", "5 minuti fa").
+ * `numeric: 'always'` keeps "1 day ago" from turning into "yesterday".
+ */
+const relativeTimeFormatters = new Map();
+
+function getRelativeTimeFormatter() {
+  const locale = YTMCI18n.intlLocale();
+  let formatter = relativeTimeFormatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'always' });
+    relativeTimeFormatters.set(locale, formatter);
+  }
+  return formatter;
+}
+
+/**
+ * Describes when a timestamp passed, in the active locale.
+ *
+ * @param {number} timestamp Epoch milliseconds.
+ * @returns {string}
+ */
 function formatRelativeTime(timestamp) {
-  if (!timestamp) return 'recently';
+  if (!timestamp) return t('msg_relative_recently');
   const diffSec = Math.floor((Date.now() - timestamp) / 1000);
-  if (diffSec < 60) return 'just now';
+  if (diffSec < 60) return t('msg_relative_just_now');
+  const formatter = getRelativeTimeFormatter();
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 60) return formatter.format(-diffMin, 'minute');
   const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
+  if (diffHours < 24) return formatter.format(-diffHours, 'hour');
+  return formatter.format(-Math.floor(diffHours / 24), 'day');
 }
 
 function renderHistorySyncStatus(syncState) {
@@ -1222,28 +1516,31 @@ function renderHistorySyncStatus(syncState) {
   const hasLegacy = syncState && syncState.lastDateHeader;
 
   if (!syncState || (!hasWatermark && !hasLegacy && !syncState.lastSyncTimestamp)) {
-    elements.historySyncText.textContent = 'Sync Status: Ready for first sync';
+    elements.historySyncText.textContent = t('msg_sync_status_ready');
     if (elements.historySyncDot) elements.historySyncDot.classList.remove('active');
-    if (elements.debugSyncBoundaryStatus) elements.debugSyncBoundaryStatus.textContent = 'Boundary: None';
+    if (elements.debugSyncBoundaryStatus) elements.debugSyncBoundaryStatus.textContent = t('msg_debug_boundary_none');
     return;
   }
 
   const latestTitle = syncState.lastTrackTitle || (hasWatermark ? syncState.watermark[0].title : syncState.lastDateHeader);
-  const timeStr = syncState.lastSyncTimestamp ? formatRelativeTime(syncState.lastSyncTimestamp) : 'recently';
+  const timeStr = syncState.lastSyncTimestamp ? formatRelativeTime(syncState.lastSyncTimestamp) : t('msg_relative_recently');
 
-  elements.historySyncText.textContent = `Sync Status: Synced ${timeStr} (Latest: "${latestTitle}")`;
+  elements.historySyncText.textContent = t('msg_sync_status_synced', [timeStr, latestTitle]);
   if (elements.historySyncDot) elements.historySyncDot.classList.add('active');
   if (elements.debugSyncBoundaryStatus) {
+    // Diagnostic readout, so the remote track title is still interpolated - but
+    // through textContent, and with the count pluralized rather than "1 tracks".
     elements.debugSyncBoundaryStatus.textContent = hasWatermark
-      ? `Watermark: ${syncState.watermark.length} tracks (Top: "${latestTitle}")`
-      : `Boundary: "${syncState.lastDateHeader}" (${syncState.syncedCountOnDate || 0} plays)`;
+      ? t('msg_debug_watermark', [plural('msg_tracks', syncState.watermark.length), latestTitle])
+      : t('msg_debug_boundary_date', [syncState.lastDateHeader, plural('msg_count_play', syncState.syncedCountOnDate || 0)]);
   }
 }
 
 async function checkHistorySyncStatus() {
   try {
     const data = await extBrowser.storage.local.get(['historySyncState']);
-    renderHistorySyncStatus(data && data.historySyncState);
+    lastHistorySyncState = data && data.historySyncState ? data.historySyncState : null;
+    renderHistorySyncStatus(lastHistorySyncState);
   } catch (err) {
     console.error('[Details] Error checking historySyncState:', err);
   }
@@ -1258,7 +1555,8 @@ if (extBrowser.storage && extBrowser.storage.onChanged) {
       renderScanProgress(lastScanProgress);
     }
     if (changes.historySyncState) {
-      renderHistorySyncStatus(changes.historySyncState.newValue);
+      lastHistorySyncState = changes.historySyncState.newValue || null;
+      renderHistorySyncStatus(lastHistorySyncState);
       refreshDebugStatusBar();
     }
 
@@ -1285,12 +1583,13 @@ async function refreshThumbnailCacheStats() {
   try {
     const stats = await thumbnailCache.getThumbnailStats();
     if (seq === refreshThumbnailCacheStatsSeq) {
-      elements.thumbnailCacheCount.textContent = `${stats.count} covers`;
-      elements.thumbnailCacheSize.textContent = `(${stats.formattedSize})`;
+      const count = Number(stats.count) || 0;
+      elements.thumbnailCacheCount.textContent = plural('msg_cache_covers', count);
+      elements.thumbnailCacheSize.textContent = `(${formatBytes(Number(stats.bytes) || 0)})`;
     }
   } catch (err) {
     if (seq === refreshThumbnailCacheStatsSeq) {
-      elements.thumbnailCacheCount.textContent = 'Error';
+      elements.thumbnailCacheCount.textContent = t('msg_generic_error');
       elements.thumbnailCacheSize.textContent = '';
     }
   }
@@ -1311,7 +1610,7 @@ function setupThumbnailCacheSettings() {
   if (elements.refreshThumbnailCacheStatsBtn) {
     elements.refreshThumbnailCacheStatsBtn.addEventListener('click', async () => {
       await refreshThumbnailCacheStats();
-      showCacheOpMessage('Size refreshed');
+      showCacheOpMessage(t('msg_cache_size_refreshed'));
     });
   }
 
@@ -1323,17 +1622,15 @@ function setupThumbnailCacheSettings() {
         requestedCoverKeys.clear();
         warmedCoverKeys.clear();
         await refreshThumbnailCacheStats();
-        showCacheOpMessage('Cover cache cleared!');
+        showCacheOpMessage(t('msg_cache_cleared'));
         renderAlbumsBreakdown();
       } catch (err) {
-        showCacheOpMessage('Clear error: ' + err.message);
+        showCacheOpMessage(t('msg_cache_clear_error', [err && err.message ? err.message : '']));
       } finally {
         elements.clearThumbnailCacheBtn.disabled = false;
       }
     });
   }
-
-  refreshThumbnailCacheStats();
 }
 
 // Memory cleanup on page unload
@@ -1353,6 +1650,29 @@ function showImportExportMessage(msg, isError = false) {
   }, 4500);
 }
 
+/**
+ * Maps a rejected IMPORT_DATA_V2 response to a message the reader can act on.
+ *
+ * A3 validates the bundle and, on failure, returns a machine `errorCode`
+ * alongside the unchanged English `error` string. The code is what gets
+ * translated: three known reasons produce three fixed sentences, and anything
+ * else (an older build that sends no code, or a failure raised before
+ * validation) falls back to the English string rather than showing nothing.
+ *
+ * @param {object|null} res The background's `{ status: 'error', ... }` reply.
+ * @returns {string}
+ */
+function describeImportFailure(res) {
+  const known = {
+    importInvalidJson: 'msg_import_error_not_json',
+    malformedSchemaV2: 'msg_import_error_bad_schema',
+    unrecognizedBackupFormat: 'msg_import_error_unrecognized_format'
+  };
+  const key = res && res.errorCode ? known[res.errorCode] : null;
+  if (key) return t(key);
+  return t('msg_import_error', [res && res.error ? res.error : '']);
+}
+
 function setupDataBackupWorkflow() {
   if (elements.exportLibraryJsonBtn) {
     elements.exportLibraryJsonBtn.addEventListener('click', async () => {
@@ -1361,7 +1681,7 @@ function setupDataBackupWorkflow() {
         const response = await sendRuntimeMessage({ type: 'EXPORT_DATA_V2' });
         elements.exportLibraryJsonBtn.disabled = false;
         if (!response || response.status !== 'ok') {
-          showImportExportMessage('Export failed: ' + (response && response.error), true);
+          showImportExportMessage(t('msg_export_failed', [response && response.error ? response.error : '']), true);
           return;
         }
         // Blob + object URL instead of a data: URL. A data: URL caps out at a
@@ -1380,10 +1700,10 @@ function setupDataBackupWorkflow() {
         // Revoked on the next tick: revoking synchronously can cancel the
         // download in some builds.
         setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
-        showImportExportMessage('Library exported successfully!');
+        showImportExportMessage(t('msg_export_success'));
       } catch (err) {
         elements.exportLibraryJsonBtn.disabled = false;
-        showImportExportMessage('Export error: ' + err.message, true);
+        showImportExportMessage(t('msg_export_error', [err && err.message ? err.message : '']), true);
       }
     });
   }
@@ -1399,11 +1719,15 @@ function setupDataBackupWorkflow() {
           const parsed = JSON.parse(event.target.result);
           const res = await sendRuntimeMessage({ type: 'IMPORT_DATA_V2', payload: parsed });
           if (!res || res.status !== 'ok') {
-            showImportExportMessage('Import error: ' + (res && res.error), true);
+            showImportExportMessage(describeImportFailure(res), true);
             return;
           }
           const { songsCount, artistsCount, albumsCount } = res.data;
-          showImportExportMessage(`Imported ${songsCount} songs, ${artistsCount} artists, ${albumsCount} albums!`);
+          showImportExportMessage(t('msg_import_success', [
+            plural('msg_count_song', songsCount),
+            plural('msg_artists', artistsCount),
+            plural('msg_albums', albumsCount)
+          ]));
 
           // The library was replaced wholesale, so every cover resolved for the previous
           // one is meaningless. Dropping the marks lets the rebuilt cards resolve
@@ -1416,7 +1740,7 @@ function setupDataBackupWorkflow() {
           // the statistics, so the storage listener does not cover them.
           await Promise.all([loadStats(), checkScanProgress(), checkHistorySyncStatus()]);
         } catch (parseErr) {
-          showImportExportMessage('Invalid JSON format: ' + parseErr.message, true);
+          showImportExportMessage(t('msg_import_invalid_json', [parseErr && parseErr.message ? parseErr.message : '']), true);
         } finally {
           elements.importLibraryJsonInput.value = '';
         }
@@ -1424,6 +1748,37 @@ function setupDataBackupWorkflow() {
       reader.readAsText(file);
     });
   }
+}
+
+/** Last historySyncState payload seen, so a locale switch can re-render it. */
+let lastHistorySyncState = null;
+
+/** Unsubscribe handle for the locale listener; released on pagehide. */
+let unsubscribeLocaleChanged = null;
+
+/**
+ * Re-renders everything whose text is assembled in JS after a locale switch.
+ *
+ * `localizeDocument()` alone is not enough: album cards, the scanner panel, the
+ * relative-time stamp and the toasts are all built here, not from `data-i18n`
+ * attributes. The static chrome is left to `localizeDocument()` so there is one
+ * implementation of it, not two.
+ *
+ * @returns {void}
+ */
+function renderLocalizedUi() {
+  // Re-apply data-i18n attributes first: the settings/about tab labels are
+  // static, and they must not lag a frame behind the JS-rendered panels.
+  YTMCI18n.localizeDocument();
+  setupLanguageSelect();
+  // Stat cards hold a `data-i18n` placeholder ("0 min"), so the line above just
+  // reset them; re-render the cached payload (it also rebuilds the album list).
+  if (lastRenderedStats) renderStats(lastRenderedStats);
+  else renderAlbumsBreakdown();
+  if (lastScanProgress) renderScanProgress(lastScanProgress);
+  renderHistorySyncStatus(lastHistorySyncState);
+  refreshThumbnailCacheStats();
+  refreshDebugStatusBar();
 }
 
 // Initialization on DOMContentLoaded
@@ -1444,12 +1799,46 @@ document.addEventListener('DOMContentLoaded', () => {
       renderAlbumsBreakdown();
     });
   }
-  loadStats();
-  checkScanProgress();
-  checkHistorySyncStatus();
-  // Drives the stale-scan timeout: without a re-render on a timer, a scan whose
-  // tab died produces no storage event and the panel stays stuck.
-  startScanPanelWatch();
+
+  // The catalog has to be resolved before anything that renders text from JS,
+  // otherwise override users would see a mix of English and their language.
+  // Every data load therefore waits for init(). details.html ships English
+  // inline, so a failed init still leaves a usable page.
+  YTMCI18n.init()
+    .then(() => {
+      YTMCI18n.localizeDocument();
+      setupLanguageSelect();
+      if (typeof unsubscribeLocaleChanged !== 'function') {
+        unsubscribeLocaleChanged = YTMCI18n.onLocaleChanged(renderLocalizedUi);
+      }
+    })
+    .catch((err) => {
+      // init() is contracted never to reject, but a swallowed failure here would
+      // silently strand the page on English; continuing beats an unhandled rejection.
+      console.warn('[Details] Localization init failed; continuing with English.', err);
+      YTMCI18n.localizeDocument();
+      setupLanguageSelect();
+    })
+    .then(() => {
+      loadStats();
+      checkScanProgress();
+      checkHistorySyncStatus();
+      refreshThumbnailCacheStats();
+      refreshDebugStatusBar();
+      // Drives the stale-scan timeout: without a re-render on a timer, a scan whose
+      // tab died produces no storage event and the panel stays stuck.
+      startScanPanelWatch();
+    });
+
+  // Release the subscription when the page goes away. Chrome has no
+  // unload-for-extension-pages event on every platform, so this is a
+  // best-effort cleanup rather than a guarantee - the set is per-document.
+  window.addEventListener('pagehide', () => {
+    if (typeof unsubscribeLocaleChanged === 'function') {
+      unsubscribeLocaleChanged();
+      unsubscribeLocaleChanged = null;
+    }
+  }, { once: true });
 });
 
 /* ==========================================================================
@@ -1506,9 +1895,6 @@ function setupDebugSection() {
     });
   }
 
-  // Update tags
-  refreshDebugStatusBar();
-
   // Ping button
   if (elements.debugPingBtn) {
     elements.debugPingBtn.addEventListener('click', async () => {
@@ -1518,7 +1904,7 @@ function setupDebugSection() {
         debugLog('PING', `tabs.query found ${tabs.length} tabs.`, tabs.map(t => ({ id: t.id, url: t.url, active: t.active })));
         if (tabs.length === 0) {
           debugLog('PING', 'WARNING: No tab matching *://music.youtube.com/* is currently open.');
-          if (elements.debugTabStatus) elements.debugTabStatus.textContent = 'YT Tab: None Open';
+          if (elements.debugTabStatus) elements.debugTabStatus.textContent = t('msg_debug_tab_none');
           return;
         }
 
@@ -1528,11 +1914,11 @@ function setupDebugSection() {
           const response = await sendTabMessage(targetTab.id, { type: 'PING_CONTENT_SCRIPT' });
           debugLog('PING_SUCCESS', 'Received response from content script:', response);
           if (elements.debugTabStatus) {
-            elements.debugTabStatus.textContent = `YT Tab: Connected (${(response && response.itemsCount) || 0} items)`;
+            elements.debugTabStatus.textContent = plural('msg_debug_tab_connected', (response && response.itemsCount) || 0);
           }
         } catch (pingErr) {
           debugLog('PING_ERROR', 'Could not reach content script (content script might not be injected or page still loading):', pingErr.message || pingErr);
-          if (elements.debugTabStatus) elements.debugTabStatus.textContent = 'YT Tab: Unreachable (Reload tab)';
+          if (elements.debugTabStatus) elements.debugTabStatus.textContent = t('msg_debug_tab_unreachable');
         }
       } catch (err) {
         debugLog('PING_EXCEPTION', 'Error during ping:', err.message || err);
@@ -1559,6 +1945,7 @@ function setupDebugSection() {
       try {
         await extBrowser.storage.local.remove(['historySyncState']);
         debugLog('SYNC_RESET', 'historySyncState cleared. Next scan will run in full baseline mode.');
+        lastHistorySyncState = null;
         renderHistorySyncStatus(null);
         refreshDebugStatusBar();
       } catch (err) {
@@ -1570,7 +1957,7 @@ function setupDebugSection() {
   // Clear logs button
   if (elements.debugClearLogsBtn) {
     elements.debugClearLogsBtn.addEventListener('click', () => {
-      if (elements.debugConsole) elements.debugConsole.textContent = 'Debug console cleared.';
+      if (elements.debugConsole) elements.debugConsole.textContent = t('msg_debug_console_cleared');
     });
   }
 
@@ -1630,7 +2017,7 @@ function setupEnrichmentControls() {
       const btn = elements.fetchMissingTracklistsBtn;
       btn.disabled = true;
       const originalLabel = btn.textContent;
-      btn.textContent = 'Queued...';
+      btn.textContent = t('msg_debug_queueing');
       debugLog('ENRICH', 'Manual tracklist backfill requested. Open a music.youtube.com tab for best results.');
 
       // The background answers immediately and runs the sweep as a resumable job.
@@ -1649,12 +2036,12 @@ function setupEnrichmentControls() {
           if (r && r.queued) {
             debugLog('ENRICH', `Backfill queued: ${r.total} tracklists to resolve. Live progress in the scanner panel.`);
             if (elements.enrichmentStatusTag) {
-              elements.enrichmentStatusTag.textContent = `Tracklists: ${r.total} queued`;
+              elements.enrichmentStatusTag.textContent = plural('msg_debug_tracklists_queued', r.total);
             }
             restoreButton();
           } else {
             debugLog('ENRICH', 'Backfill: nothing to fetch, every tracked album already has a tracklist.');
-            if (elements.enrichmentStatusTag) elements.enrichmentStatusTag.textContent = 'Tracklists: all resolved';
+            if (elements.enrichmentStatusTag) elements.enrichmentStatusTag.textContent = t('msg_debug_tracklists_all_resolved');
             restoreButton();
             loadStats();
           }
@@ -1694,11 +2081,22 @@ async function refreshDebugStatusBar(data) {
       const songs = Object.keys(storageData.songs || {}).length;
       const artists = Object.keys(storageData.artists || {}).length;
       const albums = Object.keys(storageData.albums || {}).length;
-      elements.debugStorageStatus.textContent = `Storage: ${plays} plays, ${songs} songs, ${artists} artists, ${albums} albums`;
+      // Each noun is pluralized on its own and then dropped into one message:
+      // a single "N plays, N songs, ..." template cannot agree with the number
+      // in every locale's category set at once.
+      elements.debugStorageStatus.textContent = t('msg_debug_storage', [
+        plural('msg_count_play', plays),
+        plural('msg_count_song', songs),
+        plural('msg_artists', artists),
+        plural('msg_albums', albums)
+      ]);
     }
     if (elements.debugScanStatus) {
       const scan = storageData.scanProgress;
-      elements.debugScanStatus.textContent = scan && scan.isScanning ? `Scanner: ACTIVE (${scan.count} plays)` : 'Scanner: Idle';
+      // scanPlayCount() collapses `plays` onto the legacy `count` alias.
+      elements.debugScanStatus.textContent = scan && scan.isScanning
+        ? t('msg_settings_debug_tag_scanner_active', [plural('msg_count_play', scanPlayCount(scan))])
+        : t('msg_settings_debug_tag_scanner_idle');
     }
   } catch (_) {}
 }
@@ -1719,8 +2117,19 @@ function setupHistoryScannerLauncher() {
       updatedAt: Date.now(),
       count: 0,
       unique: 0,
+      plays: 0,
+      uniqueSongs: 0,
       latestTrack: null,
-      statusText: 'Connecting to YouTube Music...'
+      // Structured, like the record the content script publishes (AD-10): there
+      // is no `statusText` to fill in. `LOCAL_CONNECTING_STEP` is a
+      // page-local code for the gap between "clicked" and "the history tab
+      // answered" - this object is never written to storage, so it cannot add
+      // a seventh value to the persisted step vocabulary.
+      step: LOCAL_CONNECTING_STEP,
+      processed: 0,
+      total: null,
+      reason: null,
+      errorCode: null
     };
     renderScanProgress(lastScanProgress);
 

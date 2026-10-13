@@ -51,6 +51,54 @@ export const ENRICHMENT_PROGRESS_KIND = 'enrichment';
 export const STALE_SCAN_AFTER_MS = 3 * 60 * 1000;
 
 /**
+ * Machine codes for `scanProgress.step` (AD-10).
+ *
+ * The background must not format user-facing text: it cannot honour the in-app
+ * language override, and a sentence written here would end up persisted in
+ * storage and re-rendered in whatever language the reader happens to use. The
+ * UI layer maps these codes to messages.
+ *
+ * `SCAN_PROGRESS_KIND` producers (content.js) own 'boundary', 'importing',
+ * 'saving' and 'navigatedAway'; the enrichment pump only ever emits
+ * 'scanning' and 'done'. All six are listed here so there is one place to look.
+ */
+export const SCAN_PROGRESS_STEPS = Object.freeze([
+  'scanning',     // walking the history list for plays
+  'boundary',     // locating the last synced entry
+  'importing',    // writing the harvested plays
+  'saving',       // persisting the imported batch
+  'done',         // terminal, non-error
+  'failed'        // terminal, error; see `errorCode`
+]);
+
+/** Terminal step emitted by the enrichment pump. */
+export const ENRICHMENT_STEP_DONE = 'done';
+
+/** In-progress step emitted by the enrichment pump. */
+export const ENRICHMENT_STEP_SCANNING = 'scanning';
+
+/**
+ * Machine codes for `scanProgress.reason` — *why* a terminal step happened.
+ * Null while a scan is still running.
+ */
+export const SCAN_PROGRESS_REASONS = Object.freeze([
+  'upToDate',       // nothing new since the last sync
+  'complete',       // finished normally
+  'fullHistory',    // hit the 200-song limit
+  'endOfHistory',   // walked the whole history
+  'navigatedAway'   // the tab left the history page mid-scan
+]);
+
+/**
+ * Machine codes for `scanProgress.errorCode` — a failure, never a sentence.
+ * The English text lives in the UI layer's message catalog.
+ */
+export const SCAN_PROGRESS_ERROR_CODES = Object.freeze([
+  'untrustedSource',  // background.js rejected the message
+  'scanFailed'
+]);
+
+/**
  * Builds the `scanProgress` payload published by the enrichment pump.
  *
  * Built from scratch rather than by spreading an earlier `scanProgress`. That
@@ -60,12 +108,21 @@ export const STALE_SCAN_AFTER_MS = 3 * 60 * 1000;
  * imported track long after the import finished.
  *
  * @param {object} job Persisted enrichment job.
- * @param {string} statusText
- * @param {boolean} [done] Marks the terminal write.
+ * @param {object} [options]
+ * @param {string} [options.step] Machine code; defaults to 'scanning', or 'done'
+ *   when `done` is set.
+ * @param {string|null} [options.reason] Machine code explaining a terminal step.
+ * @param {string|null} [options.errorCode] Machine code, null when there is none.
+ * @param {boolean} [options.done] Marks the terminal write.
  * @returns {object} A `scanProgress` payload.
  */
-export function buildEnrichmentProgress(job, statusText, done = false) {
+export function buildEnrichmentProgress(job, options = {}) {
   const source = job && typeof job === 'object' ? job : {};
+  const opts = options && typeof options === 'object' ? options : {};
+  const done = Boolean(opts.done);
+
+  const total = Array.isArray(source.candidates) ? source.candidates.length : 0;
+  const processed = Number(source.index) || 0;
 
   return {
     kind: ENRICHMENT_PROGRESS_KIND,
@@ -74,12 +131,24 @@ export function buildEnrichmentProgress(job, statusText, done = false) {
     count: 0,
     unique: 0,
     updatedAt: Date.now(),
-    enrichmentTotal: Array.isArray(source.candidates) ? source.candidates.length : 0,
-    enrichmentProcessed: Number(source.index) || 0,
+
+    // --- Structured progress (AD-10), replacing the old `statusText` sentence.
+    // `plays` / `uniqueSongs` stay null here: enrichment never counts plays, and
+    // `count` / `unique` above are the legacy aliases the Details page still
+    // reads. B4 collapses them; the numeric contract does not change.
+    step: opts.step || (done ? ENRICHMENT_STEP_DONE : ENRICHMENT_STEP_SCANNING),
+    processed,
+    total,
+    plays: null,
+    uniqueSongs: null,
+    reason: opts.reason === undefined ? null : opts.reason,
+    errorCode: opts.errorCode === undefined ? null : opts.errorCode,
+
+    enrichmentTotal: total,
+    enrichmentProcessed: processed,
     enrichmentUpdated: Number(source.updated) || 0,
     enrichmentFailed: Number(source.failed) || 0,
-    enrichmentDone: Boolean(done),
-    statusText: statusText || ''
+    enrichmentDone: done
   };
 }
 

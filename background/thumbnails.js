@@ -285,6 +285,15 @@ export async function clearThumbnailCache() {
   }
 }
 
+/**
+ * Tallies the cover cache by walking every stored record.
+ *
+ * The payload carries raw numbers only: the UI formats the size through
+ * `YTMCI18n.formatBytes`, so the background never produces user-facing text.
+ *
+ * @returns {Promise<{count: number, totalBytes: number, bytes: number,
+ *   error?: string}>} Cache tallies; `bytes` mirrors `totalBytes`.
+ */
 export async function getThumbnailStats() {
   try {
     const db = await openDB();
@@ -304,21 +313,15 @@ export async function getThumbnailStats() {
           }
           cursor.continue();
         } else {
-          let formattedSize = '0 KB';
-          if (totalBytes > 1024 * 1024) {
-            formattedSize = `${(totalBytes / (1024 * 1024)).toFixed(2)} MB`;
-          } else if (totalBytes > 0) {
-            formattedSize = `${(totalBytes / 1024).toFixed(1)} KB`;
-          }
-          resolve({ count, totalBytes, formattedSize });
+          resolve({ count, totalBytes, bytes: totalBytes });
         }
       };
       cursorReq.onerror = () => {
-        resolve({ count: 0, totalBytes: 0, formattedSize: '0 KB' });
+        resolve({ count: 0, totalBytes: 0, bytes: 0 });
       };
     });
   } catch (err) {
-    return { count: 0, totalBytes: 0, formattedSize: '0 KB', error: err.message };
+    return { count: 0, totalBytes: 0, bytes: 0, error: err.message };
   }
 }
 

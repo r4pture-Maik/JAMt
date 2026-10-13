@@ -25,6 +25,157 @@
     sendRuntimeMessageIgnoringReply: sendMessageIgnoringReply
   } = globalThis.YTMCMessaging;
 
+  /* ==========================================================================
+     Localization
+
+     A content script cannot read `_locales/` (no `web_accessible_resources`), so
+     `YTMCI18n.init()` never fetches a catalog here and leaves the host page's
+     `<html lang>` alone. Without an override, or with one that matches the browser
+     locale, native `getMessage()` answers and the background is never contacted.
+     Only when `needsCatalog()` is true does this file ask the background once
+     (GET_LOCALIZED_MESSAGES) for the raw templates of CONTENT_MESSAGE_KEYS and
+     install them with `setCatalog()`, again on every locale change. Rendering
+     never waits for that round-trip: the badge and overlay re-render on arrival.
+     ========================================================================== */
+
+  /** Injected by the manifest before this file, same as YTMCMessaging above. */
+  const i18n = globalThis.YTMCI18n;
+
+  /**
+   * Every key this file can render, requested in one batch when an override needs
+   * a catalog. Plural bases appear as their `_one` / `_other` forms; the scan
+   * vocabulary shares the `msg_scan_*` family with details.js.
+   */
+  const CONTENT_MESSAGE_KEYS = Object.freeze([
+    'msg_content_badge_play_one',
+    'msg_content_badge_play_other',
+    'msg_content_badge_title_one',
+    'msg_content_badge_title_other',
+    'msg_content_count_play_one',
+    'msg_content_count_play_other',
+    'msg_content_count_new_play_one',
+    'msg_content_count_new_play_other',
+    'msg_content_count_song_one',
+    'msg_content_count_song_other',
+    'msg_content_scanner_title',
+    'msg_content_scanner_metric_label',
+    'msg_content_scanner_minimize',
+    'msg_content_scanner_restore',
+    'msg_content_scanner_toggle_minimize',
+    'msg_content_scanner_ready',
+    'msg_content_scanner_force_rescan',
+    'msg_scanner_start_sync',
+    'msg_scanner_in_progress',
+    'msg_content_scan_checking_since',
+    'msg_content_scan_scanning_history',
+    'msg_content_scan_boundary_progress',
+    'msg_content_scan_saving',
+    'msg_content_scan_success',
+    'msg_content_scan_synced',
+    'msg_content_scan_synced_reason',
+    'msg_content_scan_up_to_date',
+    'msg_content_scan_empty_history',
+    'msg_content_scan_failed',
+    'msg_scan_step_scanning',
+    'msg_scan_step_boundary',
+    'msg_scan_step_importing',
+    'msg_scan_step_saving',
+    'msg_scan_step_done',
+    'msg_scan_step_failed',
+    'msg_scan_step_progress',
+    'msg_scan_reason_up_to_date',
+    'msg_scan_reason_complete',
+    'msg_scan_reason_full_history',
+    'msg_scan_reason_end_of_history',
+    'msg_scan_reason_navigated_away',
+    'msg_scan_error_untrusted_source',
+    'msg_scan_error_scan_failed'
+  ]);
+
+  /**
+   * Fetches the override catalog from the background when native `getMessage()`
+   * cannot answer. Resolves to whether a catalog was installed; never rejects.
+   * Bounded to 3s: nothing blocks on it and a hung service worker should not leave
+   * a pending re-render behind for the lifetime of the tab.
+   *
+   * @returns {Promise<boolean>}
+   */
+  function loadOverrideCatalog() {
+    if (!i18n.needsCatalog()) return Promise.resolve(false);
+    return sendRuntimeMessage({
+      type: 'GET_LOCALIZED_MESSAGES',
+      payload: { keys: CONTENT_MESSAGE_KEYS.slice() }
+    }, 3000).then((response) => {
+      if (!response || response.status !== 'ok' || !response.data || typeof response.data !== 'object') return false;
+      i18n.setCatalog(i18n.getLocale(), response.data);
+      return true;
+    }).catch(() => false);
+  }
+
+  /**
+   * Boots localization. Never rejects and never delays the first render.
+   *
+   * @returns {void}
+   */
+  function initLocalization() {
+    const initialLocale = i18n.getLocale();
+
+    Promise.resolve(i18n.init()).then(loadOverrideCatalog).then((loaded) => {
+      if (loaded || i18n.getLocale() !== initialLocale) renderLocalizedChrome();
+    }, () => {});
+
+    i18n.onLocaleChanged(() => {
+      loadOverrideCatalog().then(() => renderLocalizedChrome(), () => {});
+    });
+  }
+
+  /**
+   * Writes `value` into `node`, leaving the node alone when the catalog could not
+   * resolve it (AD-3: English stays inline, so an unresolvable key must never
+   * blank a label).
+   *
+   * @param {Element|null} node
+   * @param {string} value
+   */
+  function setText(node, value) {
+    if (!node || !value) return;
+    node.textContent = value;
+  }
+
+  /**
+   * Localized text with an English last resort.
+   *
+   * The fallback only ever fires when the catalog lacks the key - a broken bundle. Keeping English here means the
+   * player bar and the overlay stay readable rather than blank.
+   *
+   * @param {string} key
+   * @param {string} fallback
+   * @param {string[]|Object<string, any>} [substitutions]
+   * @returns {string}
+   */
+  function localize(key, fallback, substitutions) {
+    return i18n.t(key, substitutions) || fallback;
+  }
+
+  /**
+   * Re-renders everything this file owns after the locale changes.
+   *
+   * The overlay's live status note is deliberately NOT rewritten: it is a
+   * transient render of whatever `scanProgress` last said, and clobbering it with
+   * the idle sentence would be a lie if a scan is running. The next scan event
+   * recomposes it in the new locale.
+   *
+   * @returns {void}
+   */
+  function renderLocalizedChrome() {
+    // Only refresh an existing badge: rendering here would pin a "0 plays"
+    // badge onto a player bar that has never registered a play.
+    if (document.getElementById('ytmusic-counter-badge')) {
+      updateSongBadge(currentSongPlays, false);
+    }
+    applyScannerOverlayStrings();
+  }
+
   console.log('[YTMusic Counter] Content script initialized.');
 
   let lastTrackKey = null;
@@ -321,8 +472,13 @@
       rightControls.prepend(badge);
     }
 
-    const label = count === 1 ? 'play' : 'plays';
-    badge.title = `You have listened to this song ${count} ${label}`;
+    // The label is a bare noun rather than a counted phrase: the number is its
+    // own DOM node below. English fallbacks only fire if the catalog cannot
+    // resolve at all, so a broken bundle degrades to the old behaviour instead of
+    // rendering an empty badge.
+    const label = i18n.plural('msg_content_badge_play', count) || (count === 1 ? 'play' : 'plays');
+    badge.title = i18n.plural('msg_content_badge_title', count)
+      || `You have listened to this song ${i18n.formatNumber(count)} ${count === 1 ? 'time' : 'times'}`;
 
     // Built from DOM nodes instead of innerHTML: no interpolated value reaches the
     // HTML parser, and the markup is not re-parsed on every count update.
@@ -334,7 +490,7 @@
 
     const countEl = document.createElement('span');
     countEl.className = animate ? 'ytmc-count pulse' : 'ytmc-count';
-    countEl.textContent = String(count);
+    countEl.textContent = i18n.formatNumber(count);
 
     const labelEl = document.createElement('span');
     labelEl.className = 'ytmc-label';
@@ -550,6 +706,9 @@
 
     return {
       title,
+      // AD-8: this sentinel is persisted into storage.local and travels inside
+      // export bundles, so it stays English on write. It is mapped to a message
+      // key at render time only (details.js), never here.
       artist: artist || 'Unknown Artist',
       album: album || '',
       albumBrowseId: albumBrowseId || '',
@@ -629,13 +788,231 @@
     return -1;
   }
 
+  /**
+   * Glyphs on the scanner overlay's buttons. Kept out of the catalog: they are
+   * UI affordances, not language, and a translator should not be asked where ▶
+   * belongs in a sentence.
+   */
+  const START_GLYPH = '▶';
+  const MINIMIZE_GLYPHS = { open: '✕', minimized: '◻' };
+
+  /**
+   * Sets the scanner start button's label, keeping the leading glyph.
+   *
+   * @param {string} label Already-localized text; empty leaves the button alone.
+   * @returns {void}
+   */
+  function setStartButtonLabel(label) {
+    const span = document.querySelector('#ytmc-start-scan-btn span');
+    if (!span || !label) return;
+    span.textContent = `${START_GLYPH} ${label}`;
+  }
+
+  /**
+   * Writes the overlay's status note. `value` has already been composed from
+   * catalog lookups or numbers - never a remote string, and never markup.
+   *
+   * @param {string} value
+   * @returns {void}
+   */
+  function setScanNote(value) {
+    setText(document.getElementById('ytmc-scan-note'), value);
+  }
+
+  /**
+   * Writes the "New Songs Synced" counter. Always a number.
+   *
+   * @param {number} value
+   * @returns {void}
+   */
+  function setScanCount(value) {
+    const countEl = document.getElementById('ytmc-scan-count');
+    if (!countEl) return;
+    countEl.textContent = i18n.formatNumber(Number(value) || 0);
+  }
+
+  /**
+   * Keeps the minimize glyph, the close button's tooltip and the title group's
+   * tooltip in step with the overlay's current state.
+   *
+   * Replaces three copies of the same branch that used to live in the click
+   * handlers, and is also what makes the tooltips follow a locale change.
+   *
+   * @returns {void}
+   */
+  function updateMinimizeAffordances() {
+    const overlay = document.getElementById('ytmc-history-scanner-overlay');
+    if (!overlay) return;
+    const isMinimized = overlay.classList.contains('ytmc-minimized');
+
+    const closeBtn = overlay.querySelector('#ytmc-close-btn');
+    if (closeBtn) {
+      closeBtn.textContent = isMinimized ? MINIMIZE_GLYPHS.minimized : MINIMIZE_GLYPHS.open;
+      closeBtn.title = localize(
+        isMinimized ? 'msg_content_scanner_restore' : 'msg_content_scanner_minimize',
+        isMinimized ? 'Restore window' : 'Minimize window'
+      );
+    }
+
+    const titleGroup = overlay.querySelector('.ytmc-scanner-title-group');
+    if (titleGroup) {
+      titleGroup.title = localize('msg_content_scanner_toggle_minimize', 'Click to toggle minimize');
+    }
+  }
+
+  /**
+   * Applies every static string in the scanner overlay.
+   *
+   * Only chrome: the live status note, the play counter and the spinner are
+   * scan state, not static labels, so they are left to the scan code and to
+   * `composeScanStatusNote()`.
+   *
+   * @returns {void}
+   */
+  function applyScannerOverlayStrings() {
+    const overlay = document.getElementById('ytmc-history-scanner-overlay');
+    if (!overlay) return;
+
+    setText(
+      overlay.querySelector('.ytmc-scanner-title'),
+      localize('msg_content_scanner_title', 'Listening History Sync')
+    );
+    setText(
+      overlay.querySelector('.ytmc-metric-label'),
+      localize('msg_content_scanner_metric_label', 'New Songs Synced')
+    );
+    setText(
+      overlay.querySelector('label[for="ytmc-force-rescan-cb"]'),
+      localize('msg_content_scanner_force_rescan', 'Re-scan full history from the beginning')
+    );
+    setStartButtonLabel(localize('msg_scanner_start_sync', 'Start Sync'));
+    if (!isScanning) {
+      setScanNote(localize('msg_content_scanner_ready', 'Ready to sync your listening history.'));
+    }
+
+    updateMinimizeAffordances();
+  }
+
+  /* --------------------------------------------------------------------------
+     Scan progress vocabulary (AD-10)
+
+     `scanProgress` carries machine codes, never sentences: it is persisted to
+     storage.local, and a sentence written here would be re-rendered to whoever
+     opens the Details page next, in whatever language that page resolves to.
+     details.js maps the same codes to the same keys for the scanner panel.
+
+     The key names below are B4's `msg_scan_*` family, shared verbatim with
+     details.js: both renderers of a `scanProgress` payload must reach for the
+     identical string, because the payload is a set of codes and the wording is
+     decided once, at merge time. This script's own fragment (B5) therefore
+     deliberately does not re-declare them.
+
+     These objects are the SCAN_PROGRESS_STEPS / _REASONS / _ERROR_CODES
+     vocabularies from background/enrichment.js AND their message mapping at
+     once. This file is a classic content script with no module scope, so it
+     cannot import those frozen arrays the way details.js does - but it does not
+     need to: an unlisted code has no entry here, `keyForScanCode()` returns
+     undefined, and nothing is rendered. The gate is the map's own key set, so
+     the vocabulary is not duplicated as a second list that could drift from the
+     map. Adding a code here without adding it to enrichment.js would still be a
+     contract break; nothing in this file can paper over one.
+     -------------------------------------------------------------------------- */
+
+  /** `scanProgress.step` -> message key. */
+  const SCAN_STEP_KEYS = {
+    scanning: 'msg_scan_step_scanning',
+    boundary: 'msg_scan_step_boundary',
+    importing: 'msg_scan_step_importing',
+    saving: 'msg_scan_step_saving',
+    done: 'msg_scan_step_done',
+    failed: 'msg_scan_step_failed'
+  };
+
+  /** `scanProgress.reason` -> message key. */
+  const SCAN_REASON_KEYS = {
+    upToDate: 'msg_scan_reason_up_to_date',
+    complete: 'msg_scan_reason_complete',
+    fullHistory: 'msg_scan_reason_full_history',
+    endOfHistory: 'msg_scan_reason_end_of_history',
+    navigatedAway: 'msg_scan_reason_navigated_away'
+  };
+
+  /** `scanProgress.errorCode` -> message key. */
+  const SCAN_ERROR_KEYS = {
+    untrustedSource: 'msg_scan_error_untrusted_source',
+    scanFailed: 'msg_scan_error_scan_failed'
+  };
+
+  /**
+   * Looks a machine code up in one of the maps above.
+   *
+   * `hasOwnProperty` because these are plain object literals: without it
+   * `progress.step === 'constructor'` would resolve to Object's constructor and
+   * be passed to `t()` as a key.
+   *
+   * @param {Record<string, string>} map
+   * @param {any} code
+   * @returns {string} '' for anything the map does not declare.
+   */
+  function keyForScanCode(map, code) {
+    if (typeof code !== 'string' || !code) return '';
+    return Object.prototype.hasOwnProperty.call(map, code) ? map[code] : '';
+  }
+
+  /**
+   * Composes the overlay note from a `scanProgress` payload.
+   *
+   * Precedence matches details.js's `composeScanStatus()`: an error outranks a
+   * reason, a reason outranks a step. Every branch is a static catalog lookup
+   * keyed by a machine code, plus numbers, so there is no path by which a
+   * persisted free-text string could reach the note - the problem
+   * `sanitizeStatusText()` used to strip is gone at the source.
+   *
+   * @param {object} progress A `scanProgress` payload.
+   * @returns {string} '' when the payload carries no code we can render.
+   */
+  function composeScanStatusNote(progress) {
+    if (!progress || typeof progress !== 'object') return '';
+
+    const errorKey = keyForScanCode(SCAN_ERROR_KEYS, progress.errorCode);
+    if (errorKey) return i18n.t(errorKey);
+
+    const reasonKey = keyForScanCode(SCAN_REASON_KEYS, progress.reason);
+    if (reasonKey) return i18n.t(reasonKey);
+
+    const stepKey = keyForScanCode(SCAN_STEP_KEYS, progress.step);
+    if (!stepKey) return '';
+
+    const processed = Number(progress.processed);
+    const total = Number(progress.total);
+    const hasFraction = Number.isFinite(processed) && Number.isFinite(total) && total > 0;
+
+    return hasFraction
+      ? i18n.t('msg_scan_step_progress', [i18n.t(stepKey), i18n.formatNumber(processed), i18n.formatNumber(total)])
+      : i18n.t(stepKey);
+  }
+
   function injectHistoryScannerOverlay() {
     if (document.getElementById('ytmc-history-scanner-overlay')) {
+      // Already on screen. Deliberately NOT re-applying strings here: the note
+      // and the start button belong to the running scan, and resetting them here
+      // would report an idle scanner mid-sync. A locale change reaches the live
+      // overlay through `renderLocalizedChrome()`.
       return;
     }
 
     const overlay = document.createElement('div');
     overlay.id = 'ytmc-history-scanner-overlay';
+    // I-8 audit (and the plan's condition for keeping this write): this template
+    // interpolates NOTHING. Not one `${}` appears in the literal below - every
+    // visible string in it is static markup, and every localized string is
+    // applied afterwards through `textContent` / `.title` by
+    // `applyScannerOverlayStrings()`. So no catalog value and no YouTube Music
+    // value ever reaches the HTML parser from this call, which is strictly
+    // stronger than the "only static t() results are interpolated" rule the plan
+    // permits. The English text stays inline (AD-3) so the overlay is readable
+    // before localization resolves, and `setText()` refuses to write an empty
+    // value, so a missing key leaves the English in place rather than blanking it.
     overlay.innerHTML = `
       <div class="ytmc-scanner-header">
         <div class="ytmc-scanner-title-group">
@@ -668,7 +1045,7 @@
         </div>
         <div class="ytmc-scanner-actions">
           <button type="button" class="ytmc-btn-scan-start" id="ytmc-start-scan-btn">
-            <span>▶ Start Sync</span>
+            <span>&#9654; Start Sync</span>
           </button>
         </div>
       </div>
@@ -686,23 +1063,23 @@
 
     closeBtn.addEventListener('click', () => {
       overlay.classList.toggle('ytmc-minimized');
-      const isMin = overlay.classList.contains('ytmc-minimized');
-      closeBtn.textContent = isMin ? '◻' : '✕';
-      closeBtn.title = isMin ? 'Restore window' : 'Minimize window';
+      updateMinimizeAffordances();
     });
 
     const titleGroup = overlay.querySelector('.ytmc-scanner-title-group');
     if (titleGroup) {
       titleGroup.style.cursor = 'pointer';
-      titleGroup.title = 'Click to toggle minimize';
       titleGroup.addEventListener('click', () => {
         if (overlay.classList.contains('ytmc-minimized')) {
           overlay.classList.remove('ytmc-minimized');
-          closeBtn.textContent = '✕';
-          closeBtn.title = 'Minimize window';
+          updateMinimizeAffordances();
         }
       });
     }
+
+    // Localized strings go in after the markup is in the DOM, never through the
+    // template literal above.
+    applyScannerOverlayStrings();
 
     // Two autostart paths: a query param when the launcher navigated here
     // directly, and a storage flag when YouTube's SPA swallowed the param.
@@ -769,26 +1146,31 @@
 
     const startBtn = document.getElementById('ytmc-start-scan-btn');
     const spinner = document.getElementById('ytmc-scan-spinner');
-    const note = document.getElementById('ytmc-scan-note');
-    const countEl = document.getElementById('ytmc-scan-count');
 
     if (startBtn) {
       startBtn.disabled = true;
-      const span = startBtn.querySelector('span');
-      if (span) span.textContent = 'Sync in Progress...';
+      setStartButtonLabel(localize('msg_scanner_in_progress', 'Sync in Progress...'));
     }
     if (spinner) spinner.style.display = 'block';
-    if (countEl) countEl.textContent = '0';
-    if (note) {
-      note.textContent = watermark.length > 0
-        ? `Checking for new plays since "${watermark[0].title}"...`
-        : 'Scanning your listening history...';
-    }
+    setScanCount(0);
+    // `watermark[0].title` is a YouTube Music string, so it is composed into a
+    // catalog template and written with `textContent` - it never reaches an
+    // innerHTML sink (I-8).
+    setScanNote(watermark.length > 0
+      ? localize('msg_content_scan_checking_since', 'Checking for new plays since "..."', [watermark[0].title])
+      : localize('msg_content_scan_scanning_history', 'Scanning your listening history...'));
 
     // `updatedAt` is what lets the Details page tell a running scan from one that
     // died with its tab: this content script is the only writer that can clear
     // `isScanning`, so without a heartbeat a scan interrupted mid-flight pinned
     // the Settings page on "Syncing in progress" permanently.
+    //
+    // AD-10: codes and numbers only. The two sentences this used to publish
+    // ("Checking for new plays..." / "Finding plays in history...") map to
+    // `scanning` and `importing` respectively - with a watermark we are walking
+    // the list for new plays, without one we are harvesting a baseline to
+    // import. `count`/`unique` stay as the legacy aliases details.js still
+    // reads; `plays`/`uniqueSongs` are their structured equivalents.
     extBrowser.storage.local.set({
       scanProgress: {
         kind: SCAN_PROGRESS_KIND,
@@ -797,7 +1179,13 @@
         count: 0,
         unique: 0,
         latestTrack: null,
-        statusText: watermark.length > 0 ? 'Checking for new plays...' : 'Finding plays in history...'
+        step: watermark.length > 0 ? 'scanning' : 'importing',
+        processed: null,
+        total: null,
+        plays: 0,
+        uniqueSongs: 0,
+        reason: null,
+        errorCode: null
       }
     });
 
@@ -837,23 +1225,36 @@
 
         if (boundaryIndex >= 0) {
           const newTracks = parsedItems.slice(0, boundaryIndex).map(p => p.track);
-          stopAndSaveHistory(true, boundaryIndex === 0 ? 'Already up to date' : 'Sync complete', newTracks, parsedItems);
+          // 'Already up to date' -> reason 'upToDate'; 'Sync complete' -> 'complete'.
+          stopAndSaveHistory(true, boundaryIndex === 0 ? 'upToDate' : 'complete', newTracks, parsedItems);
           return;
         }
 
         // Boundary not found yet in currently loaded DOM items -> scroll to load more
-        if (note) {
-          note.textContent = `Scanning history... Loaded ${parsedItems.length} songs. Looking for sync boundary...`;
-        }
+        setScanNote(i18n.t('msg_content_scan_boundary_progress', [
+          i18n.plural('msg_content_count_song', parsedItems.length)
+        ]));
+        const loadedUnique = new Set(parsedItems.map(p => `${p.track.title.toLowerCase()}:::${(p.track.artist || '').toLowerCase()}`)).size;
         extBrowser.storage.local.set({
           scanProgress: {
             kind: SCAN_PROGRESS_KIND,
             isScanning: true,
             updatedAt: Date.now(),
-            count: parsedItems.length,
-            unique: new Set(parsedItems.map(p => `${p.track.title.toLowerCase()}:::${(p.track.artist || '').toLowerCase()}`)).size,
+            // `count`/`unique` were the plays-since-sync tally; during the
+            // boundary search nothing has been harvested yet, so both go to
+            // null/0 and `processed` carries the loaded-item count instead. The
+            // old record put the loaded-item count in `count`, which the Details
+            // page read as "plays found" - a number that was never plays.
+            count: 0,
+            unique: loadedUnique,
             latestTrack: parsedItems[0].track,
-            statusText: `Loaded ${parsedItems.length} songs. Finding sync boundary...`
+            step: 'boundary',
+            processed: parsedItems.length,
+            total: null,
+            plays: 0,
+            uniqueSongs: null,
+            reason: null,
+            errorCode: null
           }
         });
       } else if (!isForce) {
@@ -896,7 +1297,7 @@
 
           if (fallbackBoundary >= 0) {
             const newTracks = parsedItems.slice(0, fallbackBoundary).map(p => p.track);
-            stopAndSaveHistory(true, fallbackBoundary === 0 ? 'Already up to date' : 'Sync complete', newTracks, parsedItems);
+            stopAndSaveHistory(true, fallbackBoundary === 0 ? 'upToDate' : 'complete', newTracks, parsedItems);
             return;
           }
 
@@ -912,10 +1313,12 @@
           scannedTracks.push(p.track);
         }
 
-        const countEl = document.getElementById('ytmc-scan-count');
-        const uniqueCount = new Set(scannedTracks.map(t => `${t.title.toLowerCase()}:::${(t.artist || '').toLowerCase()}`)).size;
-        if (countEl) countEl.textContent = scannedTracks.length;
+        const uniqueCount = new Set(scannedTracks.map(track => `${track.title.toLowerCase()}:::${(track.artist || '').toLowerCase()}`)).size;
+        setScanCount(scannedTracks.length);
 
+        // "Importing history baseline (N plays)..." -> step 'importing' with the
+        // harvested play count. `total` is the 200-item ceiling the scan stops at,
+        // which is what makes this the one step with a real progress fraction.
         extBrowser.storage.local.set({
           scanProgress: {
             kind: SCAN_PROGRESS_KIND,
@@ -924,12 +1327,18 @@
             count: scannedTracks.length,
             unique: uniqueCount,
             latestTrack: scannedTracks[scannedTracks.length - 1],
-            statusText: `Importing history baseline (${scannedTracks.length} plays)...`
+            step: 'importing',
+            processed: scannedTracks.length,
+            total: MAX_HISTORY_SCAN_ITEMS,
+            plays: scannedTracks.length,
+            uniqueSongs: uniqueCount,
+            reason: null,
+            errorCode: null
           }
         });
 
         if (scannedTracks.length >= MAX_HISTORY_SCAN_ITEMS) {
-          stopAndSaveHistory(true, 'Completed', scannedTracks, parsedItems);
+          stopAndSaveHistory(true, 'fullHistory', scannedTracks, parsedItems);
           return;
         }
       }
@@ -953,11 +1362,14 @@
         // list is (probably) reached.
         idleScrollCount++;
         if (idleScrollCount >= 4) {
+          // Four scrolls with no new rows means the end of the history list.
+          // Both branches walked it to the end, so both report 'endOfHistory';
+          // they differed only in which array they were about to import.
           if (hasWatermark) {
             const allTracks = parsedItems.map(p => p.track);
-            stopAndSaveHistory(true, 'Full history scanned', allTracks, parsedItems);
+            stopAndSaveHistory(true, 'endOfHistory', allTracks, parsedItems);
           } else {
-            stopAndSaveHistory(true, 'End of history reached', scannedTracks, parsedItems);
+            stopAndSaveHistory(true, 'endOfHistory', scannedTracks, parsedItems);
           }
           return;
         }
@@ -970,6 +1382,21 @@
     }, 650);
   }
 
+  /**
+   * Ends a scan, imports whatever it harvested, and publishes the terminal
+   * progress record.
+   *
+   * @param {boolean} autoCompleted Unused by the body; kept for call-site intent.
+   * @param {string} [reason] A `SCAN_PROGRESS_REASONS` code, NOT an English
+   *   sentence (AD-10). The old signature took "Already up to date" / "Sync
+   *   complete" / "Completed" / "Full history scanned" / "End of history
+   *   reached" / "Navigated away from history" and this function then string-
+   *   matched them with a /200/i regex to decide whether to mention the reason at
+   *   all. Codes remove that whole branch.
+   * @param {Array|null} newTracks
+   * @param {Array|null} allParsed
+   * @returns {void}
+   */
   function stopAndSaveHistory(autoCompleted, reason = '', newTracks = null, allParsed = null) {
     if (!isScanning) {
       return;
@@ -984,21 +1411,29 @@
 
     const tracksToImport = Array.isArray(newTracks) ? newTracks : scannedTracks;
 
+    // Only a declared reason code is persisted; anything else degrades to
+    // 'complete' rather than storing a string nobody can render.
+    const terminalReason = keyForScanCode(SCAN_REASON_KEYS, reason) ? reason : 'complete';
+
     // Construct fresh watermark from top of the page
     let newWatermark = [];
     if (Array.isArray(allParsed) && allParsed.length > 0) {
       newWatermark = allParsed.slice(0, 50).map(p => ({
         title: p.track.title,
+        // AD-8: 'Unknown Artist' is a persisted sentinel, not a translatable
+        // label. It stays English here so a bundle written by this install reads
+        // correctly in any install that imports it; the UI layer maps it to a
+        // message key when it renders.
         artist: p.track.artist || 'Unknown Artist',
         album: p.track.album || '',
         videoId: p.track.videoId || ''
       }));
     } else if (tracksToImport.length > 0) {
-      newWatermark = tracksToImport.slice(0, 50).map(t => ({
-        title: t.title,
-        artist: t.artist || 'Unknown Artist',
-        album: t.album || '',
-        videoId: t.videoId || ''
+      newWatermark = tracksToImport.slice(0, 50).map(track => ({
+        title: track.title,
+        artist: track.artist || 'Unknown Artist',
+        album: track.album || '',
+        videoId: track.videoId || ''
       }));
     } else if (activeSyncState && Array.isArray(activeSyncState.watermark)) {
       newWatermark = activeSyncState.watermark;
@@ -1012,18 +1447,22 @@
       lastTrackArtist: topTrack ? topTrack.artist : '',
       lastSyncTimestamp: Date.now(),
       lastSyncedCount: tracksToImport.length,
-      // Backward compatibility fields for legacy UI
+      // Backward compatibility fields for legacy UI. AD-8: 'Synced' is a
+      // persisted sentinel read back by the Details page and carried in export
+      // bundles, so it is written in English and mapped to a message key at
+      // render time there - never localized here.
       lastDateHeader: topTrack ? topTrack.title : 'Synced',
       syncedCountOnDate: tracksToImport.length
     };
 
-    const countEl = document.getElementById('ytmc-scan-count');
-
     if (tracksToImport.length === 0) {
-      if (countEl) countEl.textContent = '0';
+      setScanCount(0);
 
-      const msg = activeSyncState ? 'All caught up! No new plays found.' : 'No tracks found in history.';
-      if (note) note.textContent = msg;
+      // Two different situations that both mean "nothing was harvested", told
+      // apart by whether a previous sync exists to be caught up with.
+      setScanNote(activeSyncState
+        ? localize('msg_content_scan_up_to_date', 'All caught up! No new plays found.')
+        : localize('msg_content_scan_empty_history', 'No tracks found in history.'));
 
       const finishData = {
         scanProgress: {
@@ -1033,7 +1472,16 @@
           count: 0,
           unique: 0,
           latestTrack: null,
-          statusText: msg
+          step: 'done',
+          processed: null,
+          total: null,
+          plays: 0,
+          uniqueSongs: 0,
+          // Nothing was harvested. With a watermark to compare against that is
+          // literally "up to date"; without one it is an empty baseline, which
+          // the reason vocabulary spells 'complete'.
+          reason: activeSyncState ? 'upToDate' : terminalReason,
+          errorCode: null
         }
       };
 
@@ -1042,21 +1490,19 @@
       }
 
       extBrowser.storage.local.set(finishData);
-      
+
       if (startBtn) {
         startBtn.disabled = false;
-        const span = startBtn.querySelector('span');
-        if (span) span.textContent = '▶ Start Sync';
+        setStartButtonLabel(localize('msg_scanner_start_sync', 'Start Sync'));
       }
       if (spinner) spinner.style.display = 'none';
       return;
     }
 
-    const uniqueSet = new Set(tracksToImport.map(t => `${t.title.toLowerCase()}:::${(t.artist || '').toLowerCase()}`));
-    if (countEl) countEl.textContent = tracksToImport.length;
+    const uniqueSet = new Set(tracksToImport.map(track => `${track.title.toLowerCase()}:::${(track.artist || '').toLowerCase()}`));
+    setScanCount(tracksToImport.length);
 
-    const countLabel = tracksToImport.length === 1 ? '1 play' : `${tracksToImport.length} plays`;
-    if (note) note.textContent = `Saving ${countLabel}...`;
+    setScanNote(i18n.t('msg_content_scan_saving', [i18n.plural('msg_content_count_play', tracksToImport.length)]));
 
     extBrowser.storage.local.set({
       scanProgress: {
@@ -1066,7 +1512,13 @@
         count: tracksToImport.length,
         unique: uniqueSet.size,
         latestTrack: tracksToImport[0],
-        statusText: `Saving ${countLabel}...`
+        step: 'saving',
+        processed: null,
+        total: null,
+        plays: tracksToImport.length,
+        uniqueSongs: uniqueSet.size,
+        reason: null,
+        errorCode: null
       }
     });
 
@@ -1080,16 +1532,30 @@
       const res = response && response.data;
       const importedCount = (res && typeof res.importedCount === 'number') ? res.importedCount : tracksToImport.length;
       const uniqueCount = (res && typeof res.uniqueSongs === 'number') ? res.uniqueSongs : uniqueSet.size;
-      const displayLabel = importedCount === 1 ? '1 new play' : `${importedCount} new plays`;
+      const displayLabel = i18n.plural('msg_content_count_new_play', importedCount);
 
-      if (countEl) countEl.textContent = importedCount;
-      const reasonSuffix = (reason && !/200/i.test(reason) && reason !== 'Completed') ? ` (${reason})` : '';
+      setScanCount(importedCount);
+
+      // Built from DOM nodes, never innerHTML: "Success!" is bolded, and both
+      // halves come from the catalog while the play count comes from a
+      // plural()-resolved catalog phrase.
       if (note) {
         note.textContent = '';
         const boldNode = document.createElement('b');
-        boldNode.textContent = 'Success!';
+        boldNode.textContent = localize('msg_content_scan_success', 'Success!');
         note.appendChild(boldNode);
-        note.appendChild(document.createTextNode(` Synced ${displayLabel}${reasonSuffix}.`));
+        // 'complete' needs no trailing clause - "Sync finished. Synced 12 new
+        // plays." reads as two statements about the same event. Every other
+        // reason says something the play count cannot: the history limit, the end
+        // of the list, leaving the page mid-sync.
+        const sentence = terminalReason === 'complete'
+          ? localize('msg_content_scan_synced', 'Synced $1.', [displayLabel])
+          : localize(
+            'msg_content_scan_synced_reason',
+            'Synced $1. $2',
+            [displayLabel, i18n.t(SCAN_REASON_KEYS[terminalReason])]
+          );
+        note.appendChild(document.createTextNode(` ${sentence}`));
       }
 
       extBrowser.storage.local.set({
@@ -1100,29 +1566,62 @@
           count: importedCount,
           unique: uniqueCount,
           latestTrack: null,
-          statusText: `Done! Synced ${displayLabel}${reasonSuffix}.`
+          step: 'done',
+          processed: null,
+          total: null,
+          plays: importedCount,
+          uniqueSongs: uniqueCount,
+          reason: terminalReason,
+          errorCode: null
         },
         historySyncState: newSyncState
       });
-      
+
       const startBtn = document.getElementById('ytmc-start-scan-btn');
       const spinner = document.getElementById('ytmc-scan-spinner');
       if (startBtn) {
         startBtn.disabled = false;
-        const span = startBtn.querySelector('span');
-        if (span) span.textContent = '▶ Start Sync';
+        setStartButtonLabel(localize('msg_scanner_start_sync', 'Start Sync'));
       }
       if (spinner) spinner.style.display = 'none';
     }).catch((err) => {
+      const failureText = (err && err.message) ? err.message : String(err);
       sendMessageIgnoringReply({
         type: 'DEBUG_LOG',
         tag: 'SCANNER_ERR',
-        message: 'History import failed: ' + (err && err.message ? err.message : String(err))
+        message: 'History import failed: ' + failureText
       });
-      if (note) note.textContent = `Sync failed: ${err && err.message ? err.message : String(err)}`;
-      if (countEl) countEl.textContent = '0';
+      // The underlying message reaches the note (and the debug log) as plain
+      // text. The PERSISTED record gets a code instead: a service worker error
+      // string is not a fixed English sentence, and storing it would put an
+      // untranslatable value into storage.local (AD-10).
+      setScanNote(i18n.t('msg_content_scan_failed', [failureText]));
+      setScanCount(0);
       if (startBtn) startBtn.disabled = false;
       if (spinner) spinner.style.display = 'none';
+
+      // New: the import failing used to leave `scanProgress.isScanning: true`
+      // behind forever, because only the `saving` write above had set it and
+      // nothing cleared it on this path - the Details page then reported
+      // "Syncing in progress" for a scan that had already died. This is also
+      // the only producer of errorCode 'scanFailed' in the codebase.
+      extBrowser.storage.local.set({
+        scanProgress: {
+          kind: SCAN_PROGRESS_KIND,
+          isScanning: false,
+          updatedAt: Date.now(),
+          count: 0,
+          unique: 0,
+          latestTrack: null,
+          step: 'failed',
+          processed: null,
+          total: null,
+          plays: null,
+          uniqueSongs: null,
+          reason: null,
+          errorCode: 'scanFailed'
+        }
+      });
     });
   }
 
@@ -1193,7 +1692,7 @@
       scheduleHarvestHistoryCovers();
     } else {
       if (isScanning) {
-        stopAndSaveHistory(false, 'Navigated away from history');
+        stopAndSaveHistory(false, 'navigatedAway');
       }
       // Leaving the history page means new albums can appear again later.
       harvestDone = false;
@@ -1464,6 +1963,9 @@
         if (changes.songs) {
           const track = getCurrentTrackInfo();
           if (track && track.title) {
+            // AD-8: the sentinel is the storage dictionary's key, so it is matched in
+            // English and stays English. Nothing user-facing is produced from it
+            // here.
             const key = `${track.title.trim().toLowerCase()}:::${(track.artist || 'Unknown Artist').trim().toLowerCase()}`;
             const updatedSongs = changes.songs.newValue || {};
             if (updatedSongs[key] && typeof updatedSongs[key].playCount === 'number') {
@@ -1474,10 +1976,14 @@
         }
         
         if (changes.scanProgress && changes.scanProgress.newValue) {
+          // The record carries machine codes, so the note is composed here from
+          // catalog lookups keyed by those codes plus numbers. This is what the
+          // old `progress.statusText` assignment was doing by copying a
+          // persisted English sentence straight onto the page (AD-10).
           const progress = changes.scanProgress.newValue;
           const note = document.getElementById('ytmc-scan-note');
-          if (note && progress.statusText && progress.kind !== ENRICHMENT_PROGRESS_KIND) {
-            note.textContent = progress.statusText;
+          if (note && progress.kind !== ENRICHMENT_PROGRESS_KIND) {
+            setScanNote(composeScanStatusNote(progress));
           }
         }
       }
@@ -1489,6 +1995,10 @@
       // Player bar not mounted yet: watch the body's direct children for it.
       if (document.body) bodyObserver.observe(document.body, { childList: true });
     }
+    // Started first and awaited nowhere: the badge and the overlay render from
+    // whatever `YTMCI18n` can answer synchronously and re-render when an override
+    // catalog arrives. Neither ever waits on a message round-trip.
+    initLocalization();
     checkTrackChange();
     checkHistoryRoute();
   }

@@ -1,0 +1,1060 @@
+{
+  "msg_album_completed_title": {
+    "message": "Completed Album",
+    "description": "Tooltip on the star badge drawn over the cover of an album that has been played through to completion. Rendered fresh on every card; nothing is persisted under this text."
+  },
+  "msg_album_cover_alt": {
+    "message": "Album cover",
+    "description": "Alt text for an album cover image when there is no album name available to use as its label. AD-8: the stored value is never rewritten, this is display only."
+  },
+  "msg_album_hide_tracks": {
+    "message": "Hide Tracks",
+    "description": "Label of the button on an album card while its track list is expanded. The opposite state reads as \"View Tracks\"."
+  },
+  "msg_album_played_songs_header": {
+    "message": "Songs played ($1):",
+    "description": "Heading above an album's track list when the full official tracklist is not known yet, so only the songs actually heard are listed. $1 is the number of distinct songs played.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "7"
+      }
+    }
+  },
+  "msg_album_status_completed": {
+    "message": "★ Completed ($1x)",
+    "description": "Status pill of an album card that has been played to completion. $1 is the number of complete playthroughs. Keep the star and the \"x\" multiplier marker as written; both read the same in every language.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "msg_album_status_completed_next": {
+    "message": "★ Completed ($1x) • Next: $2/$3",
+    "description": "Status pill of a completed album that also shows how far the next playthrough has got. $1 complete playthroughs so far, $2 tracks matched so far in the next playthrough, $3 tracks on the album.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      },
+      "n2": {
+        "content": "$2",
+        "example": "3"
+      },
+      "n3": {
+        "content": "$3",
+        "example": "12"
+      }
+    }
+  },
+  "msg_album_status_played_songs": {
+    "message": "$1 songs played",
+    "description": "Status pill of an album with no known tracklist: just how many of its songs have been played. Do not confuse with msg_songs - this one carries the verb.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "msg_album_status_played_songs_one": {
+    "message": "$1 song played",
+    "description": "Singular form of msg_album_status_played_songs. French uses this form for 0 as well as 1, so it must read correctly at zero.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "msg_album_status_played_songs_other": {
+    "message": "$1 songs played",
+    "description": "Plural form of msg_album_status_played_songs.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "msg_album_status_played_songs_zero": {
+    "message": "$1 songs played",
+    "description": "Zero form of msg_album_status_played_songs. Required because Brazilian Portuguese has a zero category, and shipped in every catalog so all six key sets stay identical.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "msg_album_status_progress": {
+    "message": "$1/$2 songs ($3%)",
+    "description": "Status pill of an album that is part-way through: how many of its songs have been heard. $1 songs heard, $2 songs on the album, $3 percentage complete.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "4"
+      },
+      "n2": {
+        "content": "$2",
+        "example": "12"
+      },
+      "n3": {
+        "content": "$3",
+        "example": "33"
+      }
+    }
+  },
+  "msg_album_total_plays": {
+    "message": "$1 total plays",
+    "description": "Play total shown under an album name on its card. \"Total\" qualifies the count, so keep the word next to the number in a natural word order.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "msg_album_total_plays_one": {
+    "message": "$1 total play",
+    "description": "Singular form of msg_album_total_plays. French uses this form for 0 as well as 1, so it must read correctly at zero.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "msg_album_total_plays_other": {
+    "message": "$1 total plays",
+    "description": "Plural form of msg_album_total_plays.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "msg_album_total_plays_zero": {
+    "message": "$1 total plays",
+    "description": "Zero form of msg_album_total_plays. Required because Brazilian Portuguese has a zero category, and shipped in every catalog so all six key sets stay identical.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "msg_album_tracks_header": {
+    "message": "Album tracks ($1):",
+    "description": "Heading above an album's track list once the full official tracklist has been resolved. $1 is the length of that tracklist.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "msg_album_view_tracks": {
+    "message": "View Tracks",
+    "description": "Label of the button on an album card while its track list is collapsed. The opposite state reads as \"Hide Tracks\"."
+  },
+  "msg_albums": {
+    "message": "$1 albums",
+    "description": "Stand-alone count of albums. Used inside composed sentences where the noun has to agree with the number, so it must work as a phrase on its own.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "42"
+      }
+    }
+  },
+  "msg_albums_one": {
+    "message": "$1 album",
+    "description": "Singular form of msg_albums. French uses this form for 0 as well as 1, so it must read correctly at zero.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "msg_albums_other": {
+    "message": "$1 albums",
+    "description": "Plural form of msg_albums.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "42"
+      }
+    }
+  },
+  "msg_albums_zero": {
+    "message": "$1 albums",
+    "description": "Zero form of msg_albums. Required because Brazilian Portuguese has a zero category, and shipped in every catalog so all six key sets stay identical.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "42"
+      }
+    }
+  },
+  "msg_artist_unknown": {
+    "message": "Unknown",
+    "description": "Stand-in for a missing artist name on the scanner's now-playing line. AD-8: \"Unknown\" is a persisted sentinel that also travels inside export bundles, so it is translated only where it is displayed and never on the way into storage."
+  },
+  "msg_artists": {
+    "message": "$1 artists",
+    "description": "Stand-alone count of artists. Used inside composed sentences where the noun has to agree with the number.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "msg_artists_one": {
+    "message": "$1 artist",
+    "description": "Singular form of msg_artists. French uses this form for 0 as well as 1, so it must read correctly at zero.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "msg_artists_other": {
+    "message": "$1 artists",
+    "description": "Plural form of msg_artists.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "msg_artists_zero": {
+    "message": "$1 artists",
+    "description": "Zero form of msg_artists. Required because Brazilian Portuguese has a zero category, and shipped in every catalog so all six key sets stay identical.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "msg_cache_clear_error": {
+    "message": "Clear error: $1",
+    "description": "Inline error shown after the cover thumbnail cache could not be cleared. $1 is the underlying failure text from the cache layer.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "Database is closed"
+      }
+    }
+  },
+  "msg_cache_cleared": {
+    "message": "Cover cache cleared!",
+    "description": "Inline confirmation shown after the cover thumbnail cache has been emptied."
+  },
+  "msg_cache_covers": {
+    "message": "$1 covers",
+    "description": "Number of album covers held in the thumbnail cache.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "118"
+      }
+    }
+  },
+  "msg_cache_covers_one": {
+    "message": "$1 cover",
+    "description": "Singular form of msg_cache_covers. French uses this form for 0 as well as 1, so it must read correctly at zero.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "msg_cache_covers_other": {
+    "message": "$1 covers",
+    "description": "Plural form of msg_cache_covers.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "118"
+      }
+    }
+  },
+  "msg_cache_covers_zero": {
+    "message": "$1 covers",
+    "description": "Zero form of msg_cache_covers. Required because Brazilian Portuguese has a zero category, and shipped in every catalog so all six key sets stay identical.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "118"
+      }
+    }
+  },
+  "msg_cache_size_kb": {
+    "message": "$1 KB",
+    "description": "Cover cache size in kilobytes. The divisor is binary (1024) and $1 is already rounded to one decimal place. Keep the unit attached to the number.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "210.5"
+      }
+    }
+  },
+  "msg_cache_size_mb": {
+    "message": "$1 MB",
+    "description": "Cover cache size in megabytes. The divisor is binary (1024x1024) and $1 is already rounded to two decimal places.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "1.44"
+      }
+    }
+  },
+  "msg_cache_size_refreshed": {
+    "message": "Size refreshed",
+    "description": "Inline confirmation shown after the cover cache statistics were re-read on demand."
+  },
+  "msg_count_hour": {
+    "message": "$1 hrs",
+    "description": "Hours component of the total listening time readout. Abbreviated to match the compact style of the existing readout. Shared with the popup duration display. Also used as a plural set: this key is the _other/_one form, with _zero alongside it.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "14"
+      }
+    }
+  },
+  "msg_count_minute": {
+    "message": "$1 min",
+    "description": "Minutes component of the total listening time readout. Shared with the popup duration display. Also used as a plural set: this key is the _other/_one form, with _zero alongside it.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "28"
+      }
+    }
+  },
+  "msg_count_play": {
+    "message": "$1 plays",
+    "description": "Stand-alone count of plays, used inside composed sentences where the noun has to agree with the number. Owned by B2 and shared with the popup. In music software a play is one listening of a track - do not translate it as \"track\" or \"stream\".",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "msg_count_song": {
+    "message": "$1 songs",
+    "description": "Stand-alone count of songs, used inside composed sentences where the noun has to agree with the number. Owned by B2 and shared with the popup. A song is a track as the listener hears it; keep it distinct from the play count.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "40"
+      }
+    }
+  },
+  "msg_debug_boundary_date": {
+    "message": "Boundary: \"$1\" ($2)",
+    "description": "Sync-boundary row of the debug panel for the legacy day-header boundary format. $1 is the date header from the history page; $2 is an already-pluralized play phrase such as \"5 plays\".",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "Today"
+      },
+      "n2": {
+        "content": "$2",
+        "example": "5 plays"
+      }
+    }
+  },
+  "msg_debug_boundary_none": {
+    "message": "Boundary: None",
+    "description": "Sync-boundary row of the debug panel before the first sync has established one."
+  },
+  "msg_debug_console_cleared": {
+    "message": "Debug console cleared.",
+    "description": "Contents of the debug log pane right after the Clear Logs button is pressed."
+  },
+  "msg_debug_queueing": {
+    "message": "Queued...",
+    "description": "Transient label of the \"Fetch Missing Tracklists\" button while the backfill request is being queued."
+  },
+  "msg_debug_storage": {
+    "message": "Storage: $1, $2, $3, $4",
+    "description": "Storage summary row of the debug panel. All four arguments arrive already pluralized, in the order plays, songs, artists, albums (e.g. \"1 play, 40 songs, 12 artists, 9 albums\"). Keep the order and treat each as a finished phrase.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "1 play"
+      },
+      "n2": {
+        "content": "$2",
+        "example": "40 songs"
+      },
+      "n3": {
+        "content": "$3",
+        "example": "12 artists"
+      },
+      "n4": {
+        "content": "$4",
+        "example": "9 albums"
+      }
+    }
+  },
+  "msg_debug_tab_connected": {
+    "message": "YT Tab: Connected ($1 items)",
+    "description": "YouTube Music tab row of the debug panel after the content script answered a ping. $1 is the number of library items it reported.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "msg_debug_tab_connected_one": {
+    "message": "YT Tab: Connected ($1 item)",
+    "description": "Singular form of msg_debug_tab_connected. French uses this form for 0 as well as 1, so it must read correctly at zero.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "msg_debug_tab_connected_other": {
+    "message": "YT Tab: Connected ($1 items)",
+    "description": "Plural form of msg_debug_tab_connected.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "msg_debug_tab_connected_zero": {
+    "message": "YT Tab: Connected ($1 items)",
+    "description": "Zero form of msg_debug_tab_connected. Required because Brazilian Portuguese has a zero category, and shipped in every catalog so all six key sets stay identical.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "msg_debug_tab_none": {
+    "message": "YT Tab: None Open",
+    "description": "YouTube Music tab row of the debug panel when no music.youtube.com tab is open."
+  },
+  "msg_debug_tab_unreachable": {
+    "message": "YT Tab: Unreachable (Reload tab)",
+    "description": "YouTube Music tab row of the debug panel when a YouTube Music tab is open but its content script did not answer."
+  },
+  "msg_debug_tracklists_all_resolved": {
+    "message": "Tracklists: all resolved",
+    "description": "Enrichment status tag after a manual tracklist backfill found nothing left to fetch."
+  },
+  "msg_debug_tracklists_queued": {
+    "message": "Tracklists: $1 queued",
+    "description": "Enrichment status tag after a manual tracklist backfill has been queued. $1 is the number of tracklists to resolve.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "115"
+      }
+    }
+  },
+  "msg_debug_tracklists_queued_one": {
+    "message": "Tracklists: $1 queued",
+    "description": "Singular form of msg_debug_tracklists_queued. French uses this form for 0 as well as 1, so it must read correctly at zero.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "115"
+      }
+    }
+  },
+  "msg_debug_tracklists_queued_other": {
+    "message": "Tracklists: $1 queued",
+    "description": "Plural form of msg_debug_tracklists_queued.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "115"
+      }
+    }
+  },
+  "msg_debug_tracklists_queued_zero": {
+    "message": "Tracklists: $1 queued",
+    "description": "Zero form of msg_debug_tracklists_queued. Required because Brazilian Portuguese has a zero category, and shipped in every catalog so all six key sets stay identical.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "115"
+      }
+    }
+  },
+  "msg_debug_watermark": {
+    "message": "Watermark: $1 (Top: \"$2\")",
+    "description": "Sync-boundary row of the debug panel for the current watermark format. $1 is an already-pluralized track phrase such as \"200 tracks\", $2 is the title of the newest entry. $2 comes from YouTube Music and is inserted as plain text.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "200 tracks"
+      },
+      "n2": {
+        "content": "$2",
+        "example": "Yellow Brick Road"
+      }
+    }
+  },
+  "msg_details_albums_show_all_count": {
+    "message": "Show All ($1)",
+    "description": "Label of the Top 3 / Show All toggle while the top-three view is showing, as rendered from JS with the album count attached. $1 is the total number of tracked albums. The same span (#toggleAllAlbumsText) carries msg_details_albums_show_all_albums as its pre-render default in details.html; the JS value always wins once the list is rendered.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "42"
+      }
+    }
+  },
+  "msg_details_albums_show_top3_only": {
+    "message": "Show Top 3 Only",
+    "description": "Label of the Top 3 / Show All toggle while the full list is showing, as rendered from JS. Shared span with msg_details_albums_show_all_count."
+  },
+  "msg_details_albums_subtext_showing_all": {
+    "message": "Showing all $1 tracked albums.",
+    "description": "Sub-line under the Albums Breakdown heading while the full album list is open, as rendered from JS. $1 is the total number of tracked albums. The same node (#albumsSectionSubtext) carries msg_details_albums_subtext_default as its pre-render default in details.html.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "42"
+      }
+    }
+  },
+  "msg_details_albums_subtext_showing_top3": {
+    "message": "Showing Top 3 most played albums ($1 total tracked).",
+    "description": "Sub-line under the Albums Breakdown heading while only the three most-played albums are listed, as rendered from JS. $1 is the total number of tracked albums.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "42"
+      }
+    }
+  },
+  "msg_enrich_step_done": {
+    "message": "Album metadata is up to date.",
+    "description": "Scanner-panel line for the album-metadata backfill once it has finished. This is not a history sync and must not be worded as one."
+  },
+  "msg_enrich_step_scanning": {
+    "message": "Fetching album metadata...",
+    "description": "Scanner-panel line while the album-metadata backfill is running. It shares the panel with the history sync but is a different task, so never word it as a sync."
+  },
+  "msg_export_error": {
+    "message": "Export error: $1",
+    "description": "Toast shown when the export button failed unexpectedly, for example when the download could not be prepared. $1 is the raw error text from the browser.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "Failed to fetch"
+      }
+    }
+  },
+  "msg_export_failed": {
+    "message": "Export failed: $1",
+    "description": "Toast shown when the background refused to produce an export bundle. $1 is the reason it returned.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "Storage unavailable"
+      }
+    }
+  },
+  "msg_export_success": {
+    "message": "Library exported successfully!",
+    "description": "Toast shown after a library export has been downloaded."
+  },
+  "msg_generic_error": {
+    "message": "Error",
+    "description": "Stand-in for a value that could not be read, used by the cover cache statistics."
+  },
+  "msg_import_error": {
+    "message": "Import error: $1",
+    "description": "Toast shown when an import failed for a reason with no dedicated message. $1 is the background's own English fallback text and will read as English.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "Import payload must be a valid JSON object."
+      }
+    }
+  },
+  "msg_import_error_bad_schema": {
+    "message": "Import failed: the backup is missing its songs or artists data.",
+    "description": "Import toast for a bundle that parsed as JSON but does not match the export schema."
+  },
+  "msg_import_error_not_json": {
+    "message": "Import failed: the file is not a JSON object.",
+    "description": "Import toast for a payload that is not a JSON object at all."
+  },
+  "msg_import_error_unrecognized_format": {
+    "message": "Import failed: this is not a recognised YTMusic Counter backup.",
+    "description": "Import toast for a JSON file that contains no songs, artists or albums, in other words somebody else's export."
+  },
+  "msg_import_invalid_json": {
+    "message": "Invalid JSON format: $1",
+    "description": "Toast shown when the chosen file could not be parsed as JSON at all, before it was ever sent to the background. $1 is the parser's own message.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "Unexpected token } in JSON at position 412"
+      }
+    }
+  },
+  "msg_import_success": {
+    "message": "Imported $1, $2, $3!",
+    "description": "Toast shown after a successful library import. All three arguments arrive already pluralized, in the order songs, artists, albums (e.g. \"40 songs, 12 artists, 9 albums\"). Keep the order and treat each as a finished phrase.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "40 songs"
+      },
+      "n2": {
+        "content": "$2",
+        "example": "12 artists"
+      },
+      "n3": {
+        "content": "$3",
+        "example": "9 albums"
+      }
+    }
+  },
+  "msg_relative_days_ago": {
+    "message": "$1 days ago",
+    "description": "Elapsed time in whole days. Fallback used only on engines without Intl.RelativeTimeFormat; the normal path asks Intl instead.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "msg_relative_days_ago_one": {
+    "message": "$1 day ago",
+    "description": "Singular form of msg_relative_days_ago. French uses this form for 0 as well as 1, so it must read correctly at zero.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "msg_relative_days_ago_other": {
+    "message": "$1 days ago",
+    "description": "Plural form of msg_relative_days_ago.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "msg_relative_days_ago_zero": {
+    "message": "$1 days ago",
+    "description": "Zero form of msg_relative_days_ago. Required because Brazilian Portuguese has a zero category, and shipped in every catalog so all six key sets stay identical.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "msg_relative_hours_ago": {
+    "message": "$1 hours ago",
+    "description": "Elapsed time in whole hours. Fallback used only on engines without Intl.RelativeTimeFormat; the normal path asks Intl instead.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "msg_relative_hours_ago_one": {
+    "message": "$1 hour ago",
+    "description": "Singular form of msg_relative_hours_ago. French uses this form for 0 as well as 1, so it must read correctly at zero.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "msg_relative_hours_ago_other": {
+    "message": "$1 hours ago",
+    "description": "Plural form of msg_relative_hours_ago.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "msg_relative_hours_ago_zero": {
+    "message": "$1 hours ago",
+    "description": "Zero form of msg_relative_hours_ago. Required because Brazilian Portuguese has a zero category, and shipped in every catalog so all six key sets stay identical.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "msg_relative_just_now": {
+    "message": "just now",
+    "description": "Elapsed time for anything under a minute. Deliberately not a relative-time phrase: Intl.RelativeTimeFormat cannot produce this without making the number explicit."
+  },
+  "msg_relative_minutes_ago": {
+    "message": "$1 minutes ago",
+    "description": "Elapsed time in whole minutes. Fallback used only on engines without Intl.RelativeTimeFormat; the normal path asks Intl instead.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "msg_relative_minutes_ago_one": {
+    "message": "$1 minute ago",
+    "description": "Singular form of msg_relative_minutes_ago. French uses this form for 0 as well as 1, so it must read correctly at zero.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "msg_relative_minutes_ago_other": {
+    "message": "$1 minutes ago",
+    "description": "Plural form of msg_relative_minutes_ago.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "msg_relative_minutes_ago_zero": {
+    "message": "$1 minutes ago",
+    "description": "Zero form of msg_relative_minutes_ago. Required because Brazilian Portuguese has a zero category, and shipped in every catalog so all six key sets stay identical.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "msg_relative_recently": {
+    "message": "recently",
+    "description": "Vague elapsed time used when no timestamp is recorded at all, for example the sync pill before the first sync. Deliberately vaguer than msg_relative_just_now."
+  },
+  "msg_scan_error_scan_failed": {
+    "message": "The scan could not be completed.",
+    "description": "Scanner-panel line for the scanProgress error code \"scanFailed\": a history scan failed while importing the plays it had found. Composed at render time from a machine code, never written to storage. Full sentence with a full stop."
+  },
+  "msg_scan_error_untrusted_source": {
+    "message": "The extension rejected the request as coming from an untrusted page.",
+    "description": "Scanner-panel line for the scanProgress error code \"untrustedSource\": the extension refused a message because it did not come from its own page. Composed at render time from a machine code, never written to storage. Full sentence with a full stop. Users should never normally see this; it indicates a broken install or a tampered page."
+  },
+  "msg_scan_reason_complete": {
+    "message": "Sync finished.",
+    "description": "Scanner-panel line for the scanProgress reason \"complete\": the scan ran normally to the end, with nothing unusual to report. Composed at render time from a machine code, never written to storage. Full sentence with a full stop."
+  },
+  "msg_scan_reason_end_of_history": {
+    "message": "Walked your whole listening history.",
+    "description": "Scanner-panel line for the scanProgress reason \"endOfHistory\": the scanner scrolled back to the beginning of the listening history without finding the previous sync position, so there was nothing left to read. Composed at render time from a machine code, never written to storage. Full sentence with a full stop."
+  },
+  "msg_scan_reason_full_history": {
+    "message": "Reached the 200-song history limit. Reopen the History page to sync further.",
+    "description": "Scanner-panel line for the scanProgress reason \"fullHistory\": YouTube Music only exposes the most recent 200 history entries per page load, so the scan stopped after 200 entries. Two sentences; the second tells the user what to do next. Keep the number 200 as written unless your language has a different convention for expressing it. This replaces the old \"reached 200-song limit\" fragment that had to be stripped back out of a free-text status string, and is now a statement about the product rather than a parsing workaround. Composed at render time from a machine code, never written to storage."
+  },
+  "msg_scan_reason_navigated_away": {
+    "message": "The History page was closed before the sync finished.",
+    "description": "Scanner-panel line for the scanProgress reason \"navigatedAway\": the user left the YouTube Music History page while the scan was still running, so it was stopped. Composed at render time from a machine code, never written to storage. Full sentence with a full stop."
+  },
+  "msg_scan_reason_up_to_date": {
+    "message": "Nothing new since the last sync.",
+    "description": "Scanner-panel line for the scanProgress reason \"upToDate\": a scan ran and the history contained nothing newer than the previous sync. Composed at render time from a machine code, never written to storage. Full sentence with a full stop."
+  },
+  "msg_scan_step_boundary": {
+    "message": "Finding where the last sync stopped...",
+    "description": "Scanner-panel line for the scanProgress step \"boundary\": the scanner has loaded history entries and is matching them against the stored sync position so it can resume instead of re-reading everything. Composed at render time from a machine code, never written to storage. Full sentence with a trailing ellipsis."
+  },
+  "msg_scan_step_done": {
+    "message": "Sync finished.",
+    "description": "Scanner-panel line for the scanProgress step \"done\" when no more specific reason accompanies it: the sync completed without anything further to explain. Composed at render time from a machine code, never written to storage. Full sentence with a full stop."
+  },
+  "msg_scan_step_failed": {
+    "message": "The sync stopped with an error.",
+    "description": "Scanner-panel line for the scanProgress step \"failed\". Prefer the matching msg_scan_error_* string when one applies; this is the generic fallback. Composed at render time from a machine code, never written to storage. Full sentence with a full stop."
+  },
+  "msg_scan_step_importing": {
+    "message": "Importing your plays...",
+    "description": "Scanner-panel line for the scanProgress step \"importing\": the harvested plays are being written into the library. Composed at render time from a machine code, never written to storage. Full sentence with a trailing ellipsis."
+  },
+  "msg_scan_step_progress": {
+    "message": "$1 ($2/$3)",
+    "description": "Scanner-panel line combining a step description with its progress. $1 is an already-localized step phrase such as \"Importing your plays...\", $2 is how many items have been processed and $3 how many there are in total. Treat $1 as a finished phrase. Keep the parentheses and the slash order intact.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "Importing your plays..."
+      },
+      "n2": {
+        "content": "$2",
+        "example": "37"
+      },
+      "n3": {
+        "content": "$3",
+        "example": "200"
+      }
+    }
+  },
+  "msg_scan_step_saving": {
+    "message": "Saving your plays...",
+    "description": "Scanner-panel line for the scanProgress step \"saving\": the imported batch is being persisted. Names its object like its siblings (\"Scanning your history...\", \"Importing your plays...\") - do not shorten it to a bare \"Saving...\". Full sentence with a trailing ellipsis. Composed at render time from a machine code, never written to storage."
+  },
+  "msg_scan_step_scanning": {
+    "message": "Scanning your history...",
+    "description": "Scanner-panel line for the scanProgress step \"scanning\": walking the History page looking for plays. Composed at render time from a machine code, never written to storage. Full sentence with a trailing ellipsis."
+  },
+  "msg_scanner_enrich_progress": {
+    "message": "$1/$2 albums",
+    "description": "Counts row of the scanner panel during an album-metadata backfill. $1 albums resolved so far, $2 in total.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "14"
+      },
+      "n2": {
+        "content": "$2",
+        "example": "115"
+      }
+    }
+  },
+  "msg_scanner_enrich_resolving": {
+    "message": "Resolving album metadata",
+    "description": "Counts row of the scanner panel during a backfill that has not yet worked out how many albums it will fetch."
+  },
+  "msg_scanner_finding_songs": {
+    "message": "Finding songs in history...",
+    "description": "Scanner-panel line before a sync has identified its first track."
+  },
+  "msg_scanner_in_progress": {
+    "message": "Sync in Progress...",
+    "description": "Label of the Start Sync button while a sync is running."
+  },
+  "msg_scanner_interrupted": {
+    "message": "Scan interrupted.",
+    "description": "Scanner-panel line when a sync stopped reporting and there is no step left to describe."
+  },
+  "msg_scanner_interrupted_hint": {
+    "message": "$1 Reopen the history page to resume.",
+    "description": "Scanner-panel line combining whatever the scan last reported with the advice to reopen the History page. $1 is an already-localized status phrase, so treat it as a finished phrase and keep the sentence boundary.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "Importing your plays..."
+      }
+    }
+  },
+  "msg_scanner_live_counts": {
+    "message": "$1 ($2)",
+    "description": "Counts row of the scanner panel during a live sync. $1 arrives already pluralized (\"12 plays\" / \"1 play\") and $2 is an already-pluralized song phrase (\"40 songs\" / \"1 song\"). Both are finished phrases - do not attach a noun to either, only arrange them.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "12 plays"
+      },
+      "n2": {
+        "content": "$2",
+        "example": "40 songs"
+      }
+    }
+  },
+  "msg_scanner_metadata_fetching": {
+    "message": "Fetching Metadata",
+    "description": "Badge on the scanner panel while album-metadata enrichment is running."
+  },
+  "msg_scanner_metadata_ready": {
+    "message": "Metadata Ready",
+    "description": "Badge on the scanner panel once album-metadata enrichment has finished."
+  },
+  "msg_scanner_now_playing": {
+    "message": "🎵 \"$1\" • $2",
+    "description": "Scanner-panel line naming the track a live sync has just read, for a track that carries no album. $1 is the title, $2 the artist. Both come from YouTube Music and are inserted as plain text, never as markup.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "Yellow Brick Road"
+      },
+      "n2": {
+        "content": "$2",
+        "example": "Elton John"
+      }
+    }
+  },
+  "msg_scanner_now_playing_album": {
+    "message": "🎵 \"$1\" • $2 ($3)",
+    "description": "Scanner-panel line naming the track a live sync has just read, with the album appended. $1 title, $2 artist, $3 album. All three come from YouTube Music and are inserted as plain text, never as markup.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "Yellow Brick Road"
+      },
+      "n2": {
+        "content": "$2",
+        "example": "Elton John"
+      },
+      "n3": {
+        "content": "$3",
+        "example": "Yellow Brick Road"
+      }
+    }
+  },
+  "msg_scanner_plays_synced": {
+    "message": "$1 plays synced",
+    "description": "Counts row of the scanner panel after a sync finished: how many plays that sync imported. Keep the past-tense sense.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "37"
+      }
+    }
+  },
+  "msg_scanner_plays_synced_one": {
+    "message": "$1 play synced",
+    "description": "Singular form of msg_scanner_plays_synced. French uses this form for 0 as well as 1, so it must read correctly at zero.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "37"
+      }
+    }
+  },
+  "msg_scanner_plays_synced_other": {
+    "message": "$1 plays synced",
+    "description": "Plural form of msg_scanner_plays_synced.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "37"
+      }
+    }
+  },
+  "msg_scanner_plays_synced_zero": {
+    "message": "$1 plays synced",
+    "description": "Zero form of msg_scanner_plays_synced. Required because Brazilian Portuguese has a zero category, and shipped in every catalog so all six key sets stay identical.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "37"
+      }
+    }
+  },
+  "msg_scanner_start_sync": {
+    "message": "Start Sync",
+    "description": "Label of the button that launches a history sync, in its idle state."
+  },
+  "msg_settings_debug_tag_scanner_active": {
+    "message": "Scanner: ACTIVE ($1)",
+    "description": "Scanner row of the debug panel while a history sync is running. $1 is an already-pluralized play phrase such as \"12 plays\" - treat it as a finished phrase.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "12 plays"
+      }
+    }
+  },
+  "msg_settings_scanner_badge_complete": {
+    "message": "Completed",
+    "description": "Badge on the scanner panel after a sync that imported new plays."
+  },
+  "msg_settings_scanner_badge_failed": {
+    "message": "Failed",
+    "description": "Badge on the scanner panel after a sync that ended with an error."
+  },
+  "msg_settings_scanner_badge_interrupted": {
+    "message": "Scan Interrupted",
+    "description": "Badge on the scanner panel when a scan stopped reporting - its tab was closed - so there is no verdict to show."
+  },
+  "msg_settings_scanner_badge_up_to_date": {
+    "message": "Up to Date",
+    "description": "Badge on the scanner panel after a sync that found nothing new to import."
+  },
+  "msg_sync_status_ready": {
+    "message": "Sync Status: Ready for first sync",
+    "description": "Text of the history sync pill before any sync has run."
+  },
+  "msg_sync_status_synced": {
+    "message": "Sync Status: Synced $1 (Latest: \"$2\")",
+    "description": "Text of the history sync pill after a sync. $1 is an already-localized relative time such as \"2 hours ago\"; $2 is the title of the newest tracked song, which comes from YouTube Music and is inserted as plain text.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "2 hours ago"
+      },
+      "n2": {
+        "content": "$2",
+        "example": "Yellow Brick Road"
+      }
+    }
+  },
+  "msg_tracks": {
+    "message": "$1 tracks",
+    "description": "Count of entries in the history-sync watermark. An entry is one row of the listening history, which may be a song, a podcast episode or anything else YouTube Music lists - keep the word as generic as the language allows.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "200"
+      }
+    }
+  },
+  "msg_tracks_one": {
+    "message": "$1 track",
+    "description": "Singular form of msg_tracks. French uses this form for 0 as well as 1, so it must read correctly at zero.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "200"
+      }
+    }
+  },
+  "msg_tracks_other": {
+    "message": "$1 tracks",
+    "description": "Plural form of msg_tracks.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "200"
+      }
+    }
+  },
+  "msg_tracks_zero": {
+    "message": "$1 tracks",
+    "description": "Zero form of msg_tracks. Required because Brazilian Portuguese has a zero category, and shipped in every catalog so all six key sets stay identical.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "200"
+      }
+    }
+  }
+}

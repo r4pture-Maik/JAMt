@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "YTMusic Counter",
+  "name": "__MSG_extName__",
   "version": "1.1.0",
   "minimum_chrome_version": "121",
-  "description": "Tracks and counts your played tracks and listening stats on YouTube Music.",
+  "default_locale": "en",
+  "description": "__MSG_extDescription__",
   "author": "r4pture-maik",
   "homepage_url": "https://github.com/r4pture-Maik/ytmusic-counter",
   "incognito": "not_allowed",
@@ -29,7 +30,7 @@
   ],
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "YTMusic Counter",
+    "default_title": "__MSG_actionTitle__",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",
@@ -47,7 +48,7 @@
   "content_scripts": [
     {
       "matches": ["*://music.youtube.com/*"],
-      "js": ["shared/browse-parse.js", "shared/messaging.js", "content/content.js"],
+      "js": ["shared/browse-parse.js", "shared/i18n.js", "shared/messaging.js", "content/content.js"],
       "css": ["content/content.css"],
       "run_at": "document_idle"
     },

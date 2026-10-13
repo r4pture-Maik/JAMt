@@ -90,9 +90,15 @@ describe('History Ingestion Module - Core Statistics Updates', () => {
     // 3. Songs (total plays)
     assert.equal(stats.totalPlays, 3, 'songs count should be 3 total plays');
 
-    // 4. Time listened (totalListeningSeconds & formattedTotalTime)
+    // 4. Time listened. AD-10: the background ships raw seconds only; the UI
+    // layer formats them. Asserting the absence is stronger than the old
+    // `'8 mins'` string equality - it pins the wire format, not just a value.
     assert.equal(stats.totalListeningSeconds, 480, 'time listened in seconds should be 480');
-    assert.equal(stats.formattedTotalTime, '8 mins', 'formatted total time should be 8 mins');
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(stats, 'formattedTotalTime'),
+      false,
+      'getStats() must not ship pre-formatted text (AD-10)'
+    );
 
     // 5. Different songs (uniqueSongsCount)
     assert.equal(stats.uniqueSongsCount, 3, 'different songs count should be 3');
@@ -143,9 +149,9 @@ describe('History Ingestion Module - Core Statistics Updates', () => {
     // Different songs: only 1 unique song
     assert.equal(stats.uniqueSongsCount, 1, 'different songs count should strictly remain 1');
 
-    // Time listened: 4 * 354 = 1416 seconds (23 mins 36s -> 23 mins)
+    // Time listened: 4 * 354 = 1416 seconds. AD-10: no pre-formatted string.
     assert.equal(stats.totalListeningSeconds, 1416, 'time listened should accumulate each play');
-    assert.equal(stats.formattedTotalTime, '23 mins');
+    assert.equal(Object.prototype.hasOwnProperty.call(stats, 'formattedTotalTime'), false);
 
     // Album exists but is NOT finished (1 out of 12 tracks listened to)
     assert.equal(stats.uniqueAlbumsCount, 1, 'album count should be 1');
@@ -260,9 +266,9 @@ describe('History Ingestion Module - Core Statistics Updates', () => {
     // Songs: 5 total plays
     assert.equal(stats.totalPlays, 5, 'songs count should be 5 total plays');
 
-    // Time listened: 100 + 150 + 200 + 180 + 120 = 750 seconds (12 mins 30s -> 12 mins)
+    // Time listened: 100 + 150 + 200 + 180 + 120 = 750 seconds. AD-10: raw seconds only.
     assert.equal(stats.totalListeningSeconds, 750);
-    assert.equal(stats.formattedTotalTime, '12 mins');
+    assert.equal(Object.prototype.hasOwnProperty.call(stats, 'formattedTotalTime'), false);
   });
 
   test('preserves history sync state and handles empty or invalid payloads gracefully', async () => {
@@ -328,9 +334,9 @@ describe('History Ingestion Module - Top Rankings & Duration Formatting', () => 
     assert.equal(stats.topSongs[2].title, 'Song Gamma');
     assert.equal(stats.topSongs[2].playCount, 1);
 
-    // Total listening time: (3*200) + (2*150) + 180 = 600 + 300 + 180 = 1080 seconds = 18 mins
+    // Total listening time: (3*200) + (2*150) + 180 = 1080 seconds. AD-10: raw seconds only.
     assert.equal(stats.totalListeningSeconds, 1080);
-    assert.equal(stats.formattedTotalTime, '18 mins');
+    assert.equal(Object.prototype.hasOwnProperty.call(stats, 'formattedTotalTime'), false);
 
     // Different songs = 3
     assert.equal(stats.uniqueSongsCount, 3);

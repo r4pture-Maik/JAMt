@@ -5,7 +5,6 @@
  */
 
 import { cleanAlbumsDict, calculateCompletePlays } from './scoring.js';
-import { formatDuration } from './duration.js';
 
 /**
  * Storage key holding duration accrued before its play was registered.
@@ -365,6 +364,12 @@ export async function initializeStorage(extBrowser) {
 /**
  * Compiles aggregated statistics with Top 3 rankings, listening duration, and caching
  *
+ * The payload carries raw numbers only (`totalListeningSeconds`, play counts, ...).
+ * The background never formats user-facing text (AD-10): it cannot honour the
+ * in-app locale override, and any sentence it produced would be a fixed English
+ * string baked into the wire format. The UI composes display text from these
+ * values via `YTMCI18n` instead.
+ *
  * @param {object} extBrowser
  * @returns {Promise<object>}
  */
@@ -377,7 +382,6 @@ export async function getStats(extBrowser) {
     return {
       totalPlays: 0,
       totalListeningSeconds: 0,
-      formattedTotalTime: '0 min',
       currentTrack: null,
       uniqueSongsCount: 0,
       uniqueArtistsCount: 0,
@@ -442,7 +446,6 @@ export async function getStats(extBrowser) {
   statsCache = {
     totalPlays: data.totalPlays || 0,
     totalListeningSeconds,
-    formattedTotalTime: formatDuration(totalListeningSeconds),
     currentTrack: data.currentTrack || null,
     uniqueSongsCount: Object.keys(songs).length,
     uniqueArtistsCount: Object.keys(artists).length,
@@ -571,17 +574,21 @@ export function createExportBundleV2(rawStorage, extensionVersion) {
  * Validates and migrates an imported JSON object (handles both Schema v1 legacy and Schema v2)
  *
  * @param {any} input
- * @returns {{ valid: boolean, error?: string, bundle?: object }}
+ * @returns {{ valid: boolean, errorCode?: string, error?: string, bundle?: object }}
+ *   `errorCode` is a stable machine-readable code the UI maps to a localized
+ *   message; `error` is the English sentence kept as a fallback for callers
+ *   (and log output) that have no catalog available. Codes:
+ *   `importInvalidJson` | `malformedSchemaV2` | `unrecognizedBackupFormat`.
  */
 export function validateAndMigrateImport(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    return { valid: false, error: 'Import payload must be a valid JSON object.' };
+    return { valid: false, errorCode: 'importInvalidJson', error: 'Import payload must be a valid JSON object.' };
   }
 
   // Schema v2 validation
   if (input.schemaVersion === 2) {
     if (!input.songs || typeof input.songs !== 'object' || !input.artists || typeof input.artists !== 'object') {
-      return { valid: false, error: 'Malformed Schema v2: songs or artists dictionary missing.' };
+      return { valid: false, errorCode: 'malformedSchemaV2', error: 'Malformed Schema v2: songs or artists dictionary missing.' };
     }
     const metrics = input.metrics || {};
     const totalPlays = Math.max(0, Math.round(metrics.totalPlays || 0));
@@ -609,7 +616,7 @@ export function validateAndMigrateImport(input) {
   // Schema v1 legacy migration: has songs/artists/albums directly on top level or inside data
   const legacyData = input.data && typeof input.data === 'object' ? input.data : input;
   if (!legacyData.songs && !legacyData.artists && !legacyData.albums) {
-    return { valid: false, error: 'Unrecognized backup format. No songs, artists, or albums found.' };
+    return { valid: false, errorCode: 'unrecognizedBackupFormat', error: 'Unrecognized backup format. No songs, artists, or albums found.' };
   }
 
   const sanitized = sanitizeStorageData(legacyData);

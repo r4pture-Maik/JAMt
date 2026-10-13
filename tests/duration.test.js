@@ -140,3 +140,120 @@ describe('Duration Module - recordListeningDuration', () => {
     assert.equal(memoryStorage.totalListeningSeconds, 15);
   });
 });
+
+describe('Duration Module - guards and fallbacks', () => {
+  /** Browser stub over a mutable store; `sets` records every write. */
+  function stubBrowser(store) {
+    const sets = [];
+    return {
+      sets,
+      storage: {
+        local: {
+          get: async () => structuredClone(store),
+          set: async (updates) => { sets.push(updates); Object.assign(store, updates); }
+        }
+      }
+    };
+  }
+
+  const ZERO = { totalListeningSeconds: 0, songDuration: 0 };
+
+  test('ignores a missing payload or a payload without a title', async () => {
+    const browser = stubBrowser({});
+    assert.deepEqual(await recordListeningDuration(null, browser), ZERO);
+    assert.deepEqual(await recordListeningDuration({ deltaSeconds: 5 }, browser), ZERO);
+    assert.deepEqual(await recordListeningDuration({ songTitle: '', deltaSeconds: 5 }, browser), ZERO);
+    assert.equal(browser.sets.length, 0);
+  });
+
+  test('ignores a zero, negative or missing delta', async () => {
+    const browser = stubBrowser({});
+    for (const deltaSeconds of [0, -3, 0.4, undefined, NaN]) {
+      assert.deepEqual(await recordListeningDuration({ songTitle: 'S', deltaSeconds }, browser), ZERO);
+    }
+    assert.equal(browser.sets.length, 0);
+  });
+
+  test('reports the delta without writing when no storage area is available', async () => {
+    const expected = { totalListeningSeconds: 4, songDuration: 4 };
+    assert.deepEqual(await recordListeningDuration({ songTitle: 'S', deltaSeconds: 4 }, null), expected);
+    assert.deepEqual(await recordListeningDuration({ songTitle: 'S', deltaSeconds: 4 }, {}), expected);
+    assert.deepEqual(await recordListeningDuration({ songTitle: 'S', deltaSeconds: 4 }, { storage: {} }), expected);
+  });
+
+  test('works against an entirely empty store and parks the delta', async () => {
+    const store = {};
+    const browser = stubBrowser(store);
+    const result = await recordListeningDuration({ songTitle: ' New ', deltaSeconds: 3 }, browser);
+    assert.deepEqual(result, { totalListeningSeconds: 3, songDuration: 0 });
+    assert.deepEqual(store.songs, {});
+    assert.deepEqual(store.artists, {});
+    assert.deepEqual(store.albums, {});
+    assert.equal(store.pendingDurations['new:::'], 3);
+  });
+
+  test('does not write a pending map when nothing is parked', async () => {
+    const store = { songs: { 's:::a': { title: 'S', artist: 'A', durationSeconds: 1 } } };
+    const browser = stubBrowser(store);
+    await recordListeningDuration({ songTitle: 'S', songArtist: 'A', deltaSeconds: 2 }, browser);
+    assert.equal('pendingDurations' in browser.sets[0], false);
+  });
+
+  test('credits a known song that has no artist or album', async () => {
+    const store = { songs: { 's:::': { title: 'S', durationSeconds: 1 } } };
+    const result = await recordListeningDuration({ songTitle: 'S', deltaSeconds: 2.4 }, stubBrowser(store));
+    assert.equal(result.songDuration, 3);
+    assert.equal(store.songs['s:::'].durationSeconds, 3);
+  });
+
+  test('starts from zero when stored records have no duration yet', async () => {
+    const store = {
+      songs: { 's:::a, b': { title: 'S' } },
+      artists: { a: { artist: 'A' }, b: { artist: 'B' } },
+      albums: { 'rec:::a, b': { album: 'Rec' } }
+    };
+    await recordListeningDuration(
+      { songTitle: 'S', songArtist: 'A, B', songAlbum: 'Rec', deltaSeconds: 5 },
+      stubBrowser(store)
+    );
+    assert.equal(store.songs['s:::a, b'].durationSeconds, 5);
+    assert.equal(store.artists.a.durationSeconds, 5);
+    assert.equal(store.artists.b.durationSeconds, 5);
+    assert.equal(store.albums['rec:::a, b'].durationSeconds, 5);
+  });
+
+  test('only credits artists and albums that already exist', async () => {
+    const store = {
+      songs: { 's:::a & b': { title: 'S', durationSeconds: 0 } },
+      artists: { a: { artist: 'A', durationSeconds: 1 } },
+      albums: {}
+    };
+    await recordListeningDuration(
+      { songTitle: 'S', songArtist: 'A & B', songAlbum: 'Unknown Album', deltaSeconds: 2 },
+      stubBrowser(store)
+    );
+    assert.equal(store.artists.a.durationSeconds, 3);
+    assert.equal('b' in store.artists, false);
+    assert.deepEqual(store.albums, {});
+  });
+
+  test('never credits an album for singles, EPs or an explicit isSingle flag', async () => {
+    for (const extra of [{ songAlbum: 'Single' }, { songAlbum: 'Single - EP' }, { songAlbum: 'EP' }, { songAlbum: 'Rec', isSingle: true }]) {
+      const store = {
+        songs: { 's:::a': { title: 'S', durationSeconds: 0 } },
+        artists: {},
+        albums: { [`${extra.songAlbum.toLowerCase()}:::a`]: { album: extra.songAlbum, durationSeconds: 10 } }
+      };
+      await recordListeningDuration({ songTitle: 'S', songArtist: 'A', deltaSeconds: 2, ...extra }, stubBrowser(store));
+      assert.equal(Object.values(store.albums)[0].durationSeconds, 10, JSON.stringify(extra));
+    }
+  });
+
+  test('calls the cache invalidation callback, but only when it is a function', async () => {
+    let calls = 0;
+    const browser = stubBrowser({});
+    await recordListeningDuration({ songTitle: 'S', deltaSeconds: 1 }, browser, () => { calls++; });
+    await recordListeningDuration({ songTitle: 'S', deltaSeconds: 1 }, browser, 'not a function');
+    assert.equal(calls, 1);
+  });
+});

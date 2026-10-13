@@ -242,8 +242,8 @@
     }
     if (pageContextInFlight) return pageContextInFlight;
 
-    pageContextInFlight = new Promise((resolve) => {
-      let settled = false;
+    let settled = false;
+    const request = new Promise((resolve) => {
 
       const finish = (value) => {
         if (settled) return;
@@ -275,7 +275,10 @@
       }
     });
 
-    return pageContextInFlight;
+    // finish() can already have run (postMessage threw synchronously); do not
+    // re-publish a settled promise as the in-flight one.
+    if (!settled) pageContextInFlight = request;
+    return request;
   }
 
   /**

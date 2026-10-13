@@ -1,0 +1,10 @@
+#!/bin/sh
+# Blocks the commit unless every test passes and coverage stays above the
+# thresholds in the "test:gate" npm script. Bypass in an emergency: git commit --no-verify
+
+echo "pre-commit: running tests with coverage gate..."
+if ! npm run --silent test:gate; then
+  echo ""
+  echo "pre-commit: tests failed or coverage is below 80%. Commit aborted."
+  exit 1
+fi

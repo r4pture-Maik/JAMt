@@ -32,7 +32,7 @@ export async function recordListeningDuration(payload, extBrowser, invalidateCac
     return { totalListeningSeconds: delta, songDuration: delta };
   }
 
-  const title = (payload.songTitle || '').trim();
+  const title = payload.songTitle.trim();
   const artist = (payload.songArtist || '').trim();
   const album = (payload.songAlbum || '').trim();
   const isSingle = Boolean(payload.isSingle || !album || /^single(\s*-\s*ep)?$/i.test(album) || /^ep$/i.test(album));

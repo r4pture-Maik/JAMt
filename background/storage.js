@@ -1,5 +1,5 @@
 /**
- * YTMusic Counter - Storage, State & Data Bridge Module
+ * JAMt - Storage, State & Data Bridge Module
  * Manages local storage schema, data migrations, cached metrics compilation,
  * and Schema v2 versioned export/import pipelines.
  */
@@ -357,7 +357,7 @@ export async function initializeStorage(extBrowser) {
       await extBrowser.storage.local.set(updates);
     }
   } catch (err) {
-    console.error('[YTMusic Counter Background] Storage init error:', err);
+    console.error('[JAMt Background] Storage init error:', err);
   }
 }
 

@@ -1,5 +1,5 @@
 /**
- * YTMusic Counter - Page-World InnerTube Context Bridge
+ * JAMt - Page-World InnerTube Context Bridge
  *
  * Runs in the MAIN world (see manifest.json `content_scripts[1].world`), which is
  * the only place where YouTube Music's `ytcfg` expando actually lives.

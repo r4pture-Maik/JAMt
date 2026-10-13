@@ -1,5 +1,5 @@
 /**
- * YTMusic Counter - Shared YouTube Music browse-response parsers
+ * JAMt - Shared YouTube Music browse-response parsers
  *
  * This module is loaded in two different worlds, so it is written as a plain
  * script that publishes its API on a global namespace instead of using ESM

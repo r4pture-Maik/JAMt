@@ -1,8 +1,8 @@
-# Privacy Policy for YTMusic Counter
+# Privacy Policy for JAMt
 
 Last updated: 2026-10-13
 
-**YTMusic Counter** is built on a privacy-first architecture. It exists to give you personal insight into your own YouTube Music listening habits, and for no other purpose. There is no server component, no account, and no backend. Nobody — including the author — can see your data.
+**JAMt** (Just Another Music Tally) is built on a privacy-first architecture. It exists to give you personal insight into your own YouTube Music listening habits, and for no other purpose. There is no server component, no account, and no backend. Nobody — including the author — can see your data.
 
 ---
 
@@ -112,7 +112,7 @@ permanently. If you never press the button, your existing history is never read.
 
 ## ⚖️ YouTube and Google
 
-YTMusic Counter runs alongside `music.youtube.com` inside your existing browser session. It does not send your YouTube account details, credentials, cookies, or playback information to any external service.
+JAMt runs alongside `music.youtube.com` inside your existing browser session. It does not send your YouTube account details, credentials, cookies, or playback information to any external service.
 
 YouTube Music and Google collect data under their own privacy policies, independently of this extension. This document describes only what the extension itself does. If you have questions about how Google handles your data, please refer to [Google's Privacy Policy](https://policies.google.com/privacy).
 
@@ -193,7 +193,7 @@ cover-art cache; both are cleared.
 
 ### Trademark
 
-YouTube and YouTube Music are trademarks of Google LLC. YTMusic Counter is an independent
+YouTube and YouTube Music are trademarks of Google LLC. JAMt is an independent
 open-source project, not affiliated with, endorsed by, or sponsored by Google LLC.
 
 
@@ -201,7 +201,7 @@ open-source project, not affiliated with, endorsed by, or sponsored by Google LL
 
 ## 📬 Open Source Verification
 
-YTMusic Counter is fully open source. Anyone can inspect, audit, or verify these claims by reading the source code — there is no closed-source binary, no obfuscated code, and no build step that hides logic from review.
+JAMt is fully open source. Anyone can inspect, audit, or verify these claims by reading the source code — there is no closed-source binary, no obfuscated code, and no build step that hides logic from review.
 
 * Source code: [https://github.com/r4pture-Maik/ytmusic-counter](https://github.com/r4pture-Maik/ytmusic-counter)
 * Issues and questions: [https://github.com/r4pture-Maik/ytmusic-counter/issues](https://github.com/r4pture-Maik/ytmusic-counter/issues)

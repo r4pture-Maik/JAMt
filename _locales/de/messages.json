@@ -1,12 +1,12 @@
 {
   "actionTitle": {
-    "message": "YTMusic Counter"
+    "message": "JAMt"
   },
   "extDescription": {
     "message": "Erfasst und zählt deine gespielten Titel und deine Hörstatistiken auf YouTube Music."
   },
   "extName": {
-    "message": "YTMusic Counter"
+    "message": "JAMt"
   },
   "msg_about_blurb": {
     "message": "$1 führt eine fortlaufende Übersicht über alles, was du auf YouTube Music hörst. Gezählt werden jeder Song, die Wiedergaben pro Song und pro Künstler, abgeschlossene Alben und deine Hörzeit. Alles bleibt in deinem Browser."
@@ -369,7 +369,7 @@
     "message": "Import fehlgeschlagen: die Datei ist kein JSON-Objekt."
   },
   "msg_import_error_unrecognized_format": {
-    "message": "Import fehlgeschlagen: Dies ist keine erkannte YTMusic Counter-Sicherung."
+    "message": "Import fehlgeschlagen: Dies ist keine erkannte JAMt-Sicherung."
   },
   "msg_import_invalid_json": {
     "message": "Ungültiges JSON-Format: $1"

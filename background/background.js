@@ -1,5 +1,5 @@
 /**
- * YTMusic Counter - Native MV3 Background Service Worker
+ * JAMt - Native MV3 Background Service Worker
  * Orchestrates scoring, persistent storage, thumbnail caching,
  * continuous playback duration accumulation, and Schema v2 data bridges.
  */
@@ -71,15 +71,15 @@ import '../shared/messaging.js';
 if (!globalThis.YTMCShared || typeof globalThis.YTMCShared.buildBrowseRequestBody !== 'function') {
   // Without this the module would throw on the very first browse request, with a
   // stack trace pointing at the destructuring rather than at the real cause.
-  throw new Error('[YTMusic Counter] shared/browse-parse.js failed to register globalThis.YTMCShared');
+  throw new Error('[JAMt] shared/browse-parse.js failed to register globalThis.YTMCShared');
 }
 
 if (!globalThis.YTMCI18n || typeof globalThis.YTMCI18n.getMessages !== 'function') {
-  throw new Error('[YTMusic Counter] shared/i18n.js failed to register globalThis.YTMCI18n');
+  throw new Error('[JAMt] shared/i18n.js failed to register globalThis.YTMCI18n');
 }
 
 if (!globalThis.YTMCMessaging || typeof globalThis.YTMCMessaging.sendTabMessage !== 'function') {
-  throw new Error('[YTMusic Counter] shared/messaging.js failed to register globalThis.YTMCMessaging');
+  throw new Error('[JAMt] shared/messaging.js failed to register globalThis.YTMCMessaging');
 }
 
 const {
@@ -937,7 +937,7 @@ async function fetchAlbumTrackCount(browseId) {
     if (err && err.rateLimited) {
       return { rateLimited: true };
     }
-    console.warn('[YTMusic Counter] Error fetching album metadata:', err);
+    console.warn('[JAMt] Error fetching album metadata:', err);
     return null;
   }
 }
@@ -981,13 +981,13 @@ async function resolveAlbumCover(album, artist, browseId) {
 
       if (searchRes.status === 429 || searchRes.status === 403) {
         googleSearchCooldownUntil = Date.now() + 10 * 60 * 1000;
-        console.warn('[YTMusic Counter] Google rate-limited search. Cooldown active for 10 minutes.');
+        console.warn('[JAMt] Google rate-limited search. Cooldown active for 10 minutes.');
       } else if (searchRes.ok) {
         const json = await searchRes.json();
         coverUrl = findBestThumbnail(json);
       }
     } catch (err) {
-      console.warn('[YTMusic Counter] Native search error:', err);
+      console.warn('[JAMt] Native search error:', err);
     }
   }
 
@@ -1004,7 +1004,7 @@ async function resolveAlbumCover(album, artist, browseId) {
 
       if (searchRes.status === 429 || searchRes.status === 403) {
         googleSearchCooldownUntil = Date.now() + 10 * 60 * 1000;
-        console.warn('[YTMusic Counter] Google rate-limited search. Cooldown active for 10 minutes.');
+        console.warn('[JAMt] Google rate-limited search. Cooldown active for 10 minutes.');
       } else if (searchRes.ok) {
         const json = await searchRes.json();
         coverUrl = findBestThumbnail(json);
@@ -1179,7 +1179,7 @@ async function ensureAlbumTracklist(albumKey, browseId) {
           : Object.keys(albums).find((k) => k.toLowerCase() === albumKey.toLowerCase());
 
         if (!targetKey || !albums[targetKey]) {
-          console.warn('[YTMusic Counter] Could not find album in database during lock:', albumKey);
+          console.warn('[JAMt] Could not find album in database during lock:', albumKey);
           return false;
         }
 
@@ -1195,12 +1195,12 @@ async function ensureAlbumTracklist(albumKey, browseId) {
         invalidateStatsCache();
         return true;
       } catch (err) {
-        console.error('[YTMusic Counter] Error persisting tracklist for', albumKey, err);
+        console.error('[JAMt] Error persisting tracklist for', albumKey, err);
         return false;
       }
     });
   } catch (err) {
-    console.warn('[YTMusic Counter] Error ensuring album tracklist for', albumKey, err);
+    console.warn('[JAMt] Error ensuring album tracklist for', albumKey, err);
     await recordEnrichmentAttempt(albumKey, false);
     return false;
   } finally {

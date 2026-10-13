@@ -1,5 +1,5 @@
 /**
- * YTMusic Counter - Cross-Browser Messaging Helpers
+ * JAMt - Cross-Browser Messaging Helpers
  *
  * Loaded as a classic script in the content script, the popup and (via a side
  * effect ESM import) the background script, for the same reason as

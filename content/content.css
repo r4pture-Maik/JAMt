@@ -1,4 +1,4 @@
-/* YTMusic Counter - On-page Player Badge */
+/* JAMt - On-page Player Badge */
 #ytmusic-counter-badge {
   display: inline-flex;
   align-items: center;
@@ -58,7 +58,7 @@
 }
 
 /* ==========================================================================
-   YTMusic Counter - History Scanner Floating Overlay
+   JAMt - History Scanner Floating Overlay
    ========================================================================== */
 #ytmc-history-scanner-overlay {
   position: fixed;

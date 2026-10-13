@@ -1,6 +1,6 @@
 {
   "actionTitle": {
-    "message": "YTMusic Counter",
+    "message": "JAMt",
     "description": "Tooltip of the extension toolbar button, resolved from \"__MSG_actionTitle__\" in manifest.json (action.default_title). This is a brand name, not a phrase: it must be byte-identical in every catalog, same as extName. Do not translate or transliterate - reproduce it exactly as written."
   },
   "extDescription": {
@@ -8,7 +8,7 @@
     "description": "The extension description, resolved from \"__MSG_extDescription__\" in manifest.json and shown by the browser in the extension manager and in the Chrome Web Store / AMO listing. Unlike extName this string IS translated into every locale - it is the store listing copy a user reads before installing. Note the platform limitation: the browser resolves it from its OWN locale at install/update time, so it follows the browser language and not the in-app language setting. Keep it under the ~132-character store limit."
   },
   "extName": {
-    "message": "YTMusic Counter",
+    "message": "JAMt",
     "description": "The extension name, resolved from \"__MSG_extName__\" in manifest.json and shown by the browser in the extension manager, the toolbar tooltip list and the store listing. This is a brand name, not a phrase: it must be byte-identical in every catalog. Do not translate, transliterate, localize, capitalize differently or add diacritics - reproduce it exactly as written."
   },
   "msg_about_blurb": {
@@ -17,7 +17,7 @@
     "placeholders": {
       "brand": {
         "content": "$1",
-        "example": "YTMusic Counter"
+        "example": "JAMt"
       }
     }
   },
@@ -751,7 +751,7 @@
     "placeholders": {
       "brand": {
         "content": "$1",
-        "example": "YTMusic Counter"
+        "example": "JAMt"
       }
     }
   },
@@ -874,7 +874,7 @@
     "description": "Import toast for a payload that is not a JSON object at all."
   },
   "msg_import_error_unrecognized_format": {
-    "message": "Import failed: this is not a recognized YTMusic Counter backup.",
+    "message": "Import failed: this is not a recognized JAMt backup.",
     "description": "Import toast for a JSON file that contains no songs, artists or albums, in other words somebody else's export."
   },
   "msg_import_invalid_json": {

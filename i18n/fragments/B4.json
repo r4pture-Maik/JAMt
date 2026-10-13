@@ -606,7 +606,7 @@
     "description": "Import toast for a payload that is not a JSON object at all."
   },
   "msg_import_error_unrecognized_format": {
-    "message": "Import failed: this is not a recognised YTMusic Counter backup.",
+    "message": "Import failed: this is not a recognised JAMt backup.",
     "description": "Import toast for a JSON file that contains no songs, artists or albums, in other words somebody else's export."
   },
   "msg_import_invalid_json": {

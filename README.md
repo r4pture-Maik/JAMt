@@ -1,4 +1,4 @@
-# YTMusic Counter - Firefox & Chrome Extension
+# JAMt (Just Another Music Tally) - Firefox & Chrome Extension
 
 A lightweight, privacy-friendly WebExtension (Manifest V3) that tracks and counts your music listening stats on [YouTube Music](https://music.youtube.com). One codebase, two stores: **Firefox 140+** (addons.mozilla.org) and **Chrome 121+** (Chrome Web Store).
 
@@ -115,7 +115,7 @@ See [Localization](#-localization).
 2. Play any song:
    - The player badge next to the volume controls immediately shows `🎵 0 plays` (or your previous count).
    - After listening for at least 5 seconds, the count increments by 1 with a subtle pulse animation.
-3. Click the **YTMusic Counter** icon in the toolbar:
+3. Click the **JAMt** icon in the toolbar:
    - **Total Plays** and **Time Listened** in the hero block.
    - Switch between the **Top Songs**, **Top Artists** and **Top Albums** tabs.
    - Check the **Now Playing** card displaying the active song's play count.
@@ -128,7 +128,7 @@ See [Localization](#-localization).
 
 ## 🔒 Privacy & Data Collection
 
-**YTMusic Counter is privacy-friendly by architecture:**
+**JAMt is privacy-friendly by architecture:**
 
 - **No telemetry, no analytics, no tracking**: nothing is measured, logged, fingerprinted, or sent anywhere.
 - **No data leaves your browser**: there is no server, no account, no backend. The only network requests go to `music.youtube.com` (to read your listening history and look up album tracklists) and to Google's own image CDNs (to download cover art) — the same hosts YouTube Music already contacts while you use it.
@@ -187,7 +187,7 @@ Plural categories come from `Intl.PluralRules`, never from a `count === 1 ?` ter
 
 YouTube and YouTube Music are registered trademarks of Google LLC. 
 
-**YTMusic Counter** is an independent, open-source project and is not affiliated with, endorsed by, sponsored by, or connected to Google LLC, YouTube, or Alphabet Inc.
+**JAMt** is an independent, open-source project and is not affiliated with, endorsed by, sponsored by, or connected to Google LLC, YouTube, or Alphabet Inc.
 
 ---
 

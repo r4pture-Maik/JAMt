@@ -290,7 +290,7 @@ describe('i18n - locale plumbing (no extension API required)', () => {
 
 describe('i18n - message lookup', () => {
   const CATALOG = {
-    msg_extName: { message: 'YTMusic Counter' },
+    msg_extName: { message: 'JAMt' },
     msg_greeting: { message: 'Hello, $1!' },
     msg_count_play_one: { message: '$1 play' },
     msg_count_play_other: { message: '$1 plays' },

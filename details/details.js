@@ -1,5 +1,5 @@
 /**
- * YTMusic Counter - Details & Config Script
+ * JAMt - Details & Config Script
  * Handles real-time statistics display, tab navigation,
  * and a 3-step confirmation flow for erasing all extension data.
  */
@@ -1693,7 +1693,7 @@ function setupDataBackupWorkflow() {
         const dateStr = new Date().toISOString().split('T')[0];
         const downloadAnchor = document.createElement('a');
         downloadAnchor.href = objectUrl;
-        downloadAnchor.download = `ytmusic-counter-export-${dateStr}.json`;
+        downloadAnchor.download = `jamt-export-${dateStr}.json`;
         document.body.appendChild(downloadAnchor);
         downloadAnchor.click();
         downloadAnchor.remove();

@@ -1,6 +1,6 @@
 {
   "msg_popupTitle": {
-    "message": "YTMusic Counter",
+    "message": "JAMt",
     "description": "Browser tab and popup title, and the brand name in the header. This is a product name (same value as the extName manifest key): keep it byte-identical in every locale and do NOT translate it."
   },
   "msg_refreshStats": {

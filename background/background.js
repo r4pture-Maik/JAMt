@@ -15,8 +15,10 @@ import {
 
 import {
   makeSongKey,
-  makeArtistKey,
   makeAlbumKey,
+  primaryArtist,
+  addArtistPlays,
+  incrementCount,
   normalizeTrack,
   sanitizeStorageData,
   initializeStorage,
@@ -536,18 +538,7 @@ async function handleTrackPlayed(rawTrack) {
 
     // Update Artist count (handles multiple artists separated by comma or feat)
     if (track.artist) {
-      const artistList = track.artist.split(/[,&/]| feat\.? | ft\.? /i).map(a => a.trim()).filter(Boolean);
-      artistList.forEach(rawName => {
-        const aKey = makeArtistKey(rawName);
-        if (!artists[aKey]) {
-          artists[aKey] = { artist: rawName, playCount: 1, durationSeconds: durationDelta };
-        } else {
-          artists[aKey].playCount = (artists[aKey].playCount || 0) + 1;
-          if (durationDelta > 0) {
-            artists[aKey].durationSeconds = (artists[aKey].durationSeconds || 0) + durationDelta;
-          }
-        }
-      });
+      addArtistPlays(artists, track.artist, 1, durationDelta);
     }
 
     // Update Album count - ONLY for real albums (not singles)
@@ -574,7 +565,7 @@ async function handleTrackPlayed(rawTrack) {
           albums[albumKey].durationSeconds = (albums[albumKey].durationSeconds || 0) + durationDelta;
         }
         if (!albums[albumKey].tracksListened) albums[albumKey].tracksListened = {};
-        albums[albumKey].tracksListened[track.title] = (albums[albumKey].tracksListened[track.title] || 0) + 1;
+        incrementCount(albums[albumKey].tracksListened, track.title);
         albums[albumKey].uniqueTracksCount = Object.keys(albums[albumKey].tracksListened).length;
         if (track.albumBrowseId && !albums[albumKey].albumBrowseId) {
           albums[albumKey].albumBrowseId = track.albumBrowseId;
@@ -947,7 +938,7 @@ let googleSearchCooldownUntil = 0;
 async function resolveAlbumCover(album, artist, browseId) {
   let coverUrl = null;
   const cleanAlb = (album || '').replace(/\s*[\(\[].*?[\)\]]/g, '').trim();
-  const cleanArt = (artist || '').split('•')[0].split(/[,&/]| feat/i)[0].trim();
+  const cleanArt = primaryArtist((artist || '').split('•')[0]);
 
   // Tier 1: YouTube Music Browse endpoint (authoritative artwork for the album)
   if (browseId) {

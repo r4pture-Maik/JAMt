@@ -367,7 +367,8 @@ describe('Storage - importHistoryTracks', () => {
     assert.deepEqual(result.historySyncState, { lastTrackTitle: 'One' });
     assert.equal(b.store.artists.a.playCount, 2);
     assert.equal(b.store.artists.b.playCount, 1);
-    const album = b.store.albums['rec:::a, b'];
+    // Albums are keyed by primary artist, so features do not split them.
+    const album = b.store.albums['rec:::a'];
     assert.equal(album.totalTracks, 2);
     assert.equal(album.albumBrowseId, 'MPREb_1');
     assert.deepEqual(b.store.historySyncState, { lastTrackTitle: 'One' });

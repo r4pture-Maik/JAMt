@@ -41,3 +41,6 @@ dist/
 .agents/
 .review/
 .wiki/
+
+# Harness
+.claude

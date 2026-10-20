@@ -3,7 +3,7 @@
  * Accumulates continuous playback time across global metrics, songs, artists, and albums.
  */
 
-import { makeSongKey, makeArtistKey, makeAlbumKey, withStorageLock, PENDING_DURATIONS_KEY } from './storage.js';
+import { makeSongKey, makeArtistKey, makeAlbumKey, splitArtists, withStorageLock, PENDING_DURATIONS_KEY } from './storage.js';
 
 /**
  * Records a listening duration tick (delta) and updates storage.
@@ -64,13 +64,12 @@ export async function recordListeningDuration(payload, extBrowser, invalidateCac
 
       // 2. Known artist(s).
       if (artist) {
-        const artistList = artist.split(/[,&/]| feat\.? | ft\.? /i).map(a => a.trim()).filter(Boolean);
-        artistList.forEach(rawName => {
+        for (const rawName of splitArtists(artist)) {
           const aKey = makeArtistKey(rawName);
-          if (artists[aKey]) {
+          if (Object.prototype.hasOwnProperty.call(artists, aKey)) {
             artists[aKey].durationSeconds = (artists[aKey].durationSeconds || 0) + delta;
           }
-        });
+        }
       }
 
       // 3. Known album (singles excluded).

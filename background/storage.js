@@ -1,10 +1,21 @@
 /**
  * JAMt - Storage, State & Data Bridge Module
  * Manages local storage schema, data migrations, cached metrics compilation,
- * and Schema v2 versioned export/import pipelines.
+ * and the export/import pipeline.
  */
 
 import { cleanAlbumsDict, calculateCompletePlays } from './scoring.js';
+
+// Side-effect import: registers the month helpers on `globalThis.YTMCMonths`.
+import '../shared/month-keys.js';
+
+import {
+  artistKeysFor,
+  buildMonthUpdates,
+  readMonthState,
+  recordPlayInBucket,
+  sanitizeMonthsForImport
+} from './monthly.js';
 
 /**
  * Storage key holding duration accrued before its play was registered.
@@ -23,6 +34,33 @@ export function makeArtistKey(artist) {
 
 export function makeAlbumKey(album, artist) {
   return `${(album || '').trim().toLowerCase()}:::${(artist || '').trim().toLowerCase()}`;
+}
+
+/**
+ * Returns the month id (`YYYY-MM`, local time) that live plays and duration ticks are booked to.
+ *
+ * @param {Date} [now]
+ * @returns {string}
+ */
+export function currentMonthId(now = new Date()) {
+  return globalThis.YTMCMonths.monthIdFromDate(now);
+}
+
+/**
+ * Picks the month a history track is booked to. The month comes from the content script, so it
+ * is untrusted: anything that is not a valid month id, or that lies after the current month,
+ * falls back to the current month.
+ *
+ * @param {any} rawMonth  e.g. "2025-09"
+ * @param {string} current  current month id
+ * @returns {string}
+ */
+export function resolveTrackMonth(rawMonth, current) {
+  const { isValidMonthId, compareMonthIds } = globalThis.YTMCMonths;
+  if (isValidMonthId(rawMonth) && compareMonthIds(rawMonth, current) <= 0) {
+    return rawMonth;
+  }
+  return current;
 }
 
 // In-memory cache for compiled statistics
@@ -477,7 +515,8 @@ export async function resetStats(extBrowser, thumbnailCache = null) {
     albums: {},
     currentTrack: null,
     historySyncState: null,
-    scanProgress: null
+    scanProgress: null,
+    monthIndex: []
   };
   if (extBrowser && extBrowser.storage && extBrowser.storage.local) {
     await extBrowser.storage.local.clear();
@@ -496,14 +535,55 @@ export async function resetStats(extBrowser, thumbnailCache = null) {
 }
 
 /**
- * Creates a standardized ExportBundleV2 from current storage state.
+ * Schema version written into export bundles. Bump it whenever the bundle
+ * changes shape; it is data inside the JSON, never part of a function or
+ * message name.
+ */
+export const EXPORT_SCHEMA_VERSION = 3;
+
+/**
+ * Oldest bundle format the importer reads. Every bundle from here up to
+ * EXPORT_SCHEMA_VERSION shares one reader: newer fields (e.g. `months`) are
+ * optional, so an older bundle simply lacks them.
+ */
+const MIN_IMPORT_SCHEMA_VERSION = 2;
+
+/**
+ * @param {object} input
+ * @returns {boolean} Whether `input` declares a supported export bundle format.
+ */
+function isExportBundle(input) {
+  const v = input.schemaVersion;
+  return Number.isInteger(v) && v >= MIN_IMPORT_SCHEMA_VERSION && v <= EXPORT_SCHEMA_VERSION;
+}
+
+/**
+ * Version from the live manifest, whichever namespace the engine exposes
+ * (`browser.*` on Firefox / Chrome >= 148, `chrome.*` otherwise).
+ *
+ * @returns {string} The manifest version, or '' outside an extension context.
+ */
+function readManifestVersion() {
+  for (const ns of [globalThis.browser, globalThis.chrome]) {
+    try {
+      const version = ns && ns.runtime && ns.runtime.getManifest && ns.runtime.getManifest().version;
+      if (version) return version;
+    } catch (_) {}
+  }
+  return '';
+}
+
+/**
+ * Creates a standardized export bundle (EXPORT_SCHEMA_VERSION) from current storage state.
  * Guaranteed to strip Google account tokens, internal tokens, or non-portable cookies.
  *
  * @param {object} rawStorage
- * @param {string} [extensionVersion='1.1.0']
- * @returns {object} ExportBundleV2
+ * @param {string} [extensionVersion] The manifest version, passed by the
+ *   background. The live manifest wins when it is reachable; this is the
+ *   fallback for contexts where no extension namespace is global.
+ * @returns {object} Export bundle
  */
-export function createExportBundleV2(rawStorage, extensionVersion) {
+export function createExportBundle(rawStorage, extensionVersion) {
   const source = (rawStorage && typeof rawStorage === 'object') ? rawStorage : {};
   const sanitized = sanitizeStorageData(source);
   const totalPlays = Math.max(0, Math.round(source.totalPlays || 0));
@@ -549,12 +629,10 @@ export function createExportBundleV2(rawStorage, extensionVersion) {
   }
 
   return {
-    schemaVersion: 2,
+    schemaVersion: EXPORT_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
     // Read from the live manifest so it can never drift from manifest.json.
-    extensionVersion: (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest)
-      ? chrome.runtime.getManifest().version
-      : (extensionVersion || 'unknown'),
+    extensionVersion: readManifestVersion() || extensionVersion || 'unknown',
     metrics: {
       totalPlays,
       totalListeningSeconds
@@ -562,6 +640,7 @@ export function createExportBundleV2(rawStorage, extensionVersion) {
     songs: cleanSongs,
     artists: cleanArtists,
     albums: cleanAlbums,
+    months: sanitizeMonthsForImport(source.months),
     syncWatermark: {
       lastTrackTitle: historySync.lastTrackTitle || undefined,
       lastTrackArtist: historySync.lastTrackArtist || undefined,
@@ -571,24 +650,24 @@ export function createExportBundleV2(rawStorage, extensionVersion) {
 }
 
 /**
- * Validates and migrates an imported JSON object (handles both Schema v1 legacy and Schema v2)
+ * Validates and migrates an imported JSON object: any export bundle up to EXPORT_SCHEMA_VERSION, or a legacy flat backup
  *
  * @param {any} input
  * @returns {{ valid: boolean, errorCode?: string, error?: string, bundle?: object }}
  *   `errorCode` is a stable machine-readable code the UI maps to a localized
  *   message; `error` is the English sentence kept as a fallback for callers
  *   (and log output) that have no catalog available. Codes:
- *   `importInvalidJson` | `malformedSchemaV2` | `unrecognizedBackupFormat`.
+ *   `importInvalidJson` | `malformedBackup` | `unrecognizedBackupFormat`.
  */
 export function validateAndMigrateImport(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     return { valid: false, errorCode: 'importInvalidJson', error: 'Import payload must be a valid JSON object.' };
   }
 
-  // Schema v2 validation
-  if (input.schemaVersion === 2) {
+  // Export bundle: optional fields are read when present, whatever the version.
+  if (isExportBundle(input)) {
     if (!input.songs || typeof input.songs !== 'object' || !input.artists || typeof input.artists !== 'object') {
-      return { valid: false, errorCode: 'malformedSchemaV2', error: 'Malformed Schema v2: songs or artists dictionary missing.' };
+      return { valid: false, errorCode: 'malformedBackup', error: 'Malformed backup: songs or artists dictionary missing.' };
     }
     const metrics = input.metrics || {};
     const totalPlays = Math.max(0, Math.round(metrics.totalPlays || 0));
@@ -598,12 +677,13 @@ export function validateAndMigrateImport(input) {
     return {
       valid: true,
       bundle: {
-        schemaVersion: 2,
+        schemaVersion: EXPORT_SCHEMA_VERSION,
         totalPlays,
         totalListeningSeconds,
         songs: sanitized.songs,
         artists: sanitized.artists,
         albums: cleanAlbumsDict(sanitized.albums),
+        months: sanitizeMonthsForImport(input.months),
         historySyncState: input.syncWatermark ? {
           lastTrackTitle: input.syncWatermark.lastTrackTitle,
           lastTrackArtist: input.syncWatermark.lastTrackArtist,
@@ -613,7 +693,7 @@ export function validateAndMigrateImport(input) {
     };
   }
 
-  // Schema v1 legacy migration: has songs/artists/albums directly on top level or inside data
+  // Legacy flat backup (no schemaVersion): songs/artists/albums directly on top level or inside data
   const legacyData = input.data && typeof input.data === 'object' ? input.data : input;
   if (!legacyData.songs && !legacyData.artists && !legacyData.albums) {
     return { valid: false, errorCode: 'unrecognizedBackupFormat', error: 'Unrecognized backup format. No songs, artists, or albums found.' };
@@ -628,12 +708,13 @@ export function validateAndMigrateImport(input) {
   return {
     valid: true,
     bundle: {
-      schemaVersion: 2,
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       totalPlays: Math.max(0, Math.round(computedPlays)),
       totalListeningSeconds: Math.max(0, Math.round(legacyData.totalListeningSeconds || 0)),
       songs: sanitized.songs,
       artists: sanitized.artists,
       albums: cleanAlbumsDict(sanitized.albums),
+      months: {},
       historySyncState: legacyData.historySyncState || null
     }
   };
@@ -664,12 +745,23 @@ export async function importHistoryTracks(payload, extBrowser) {
   const artists = data.artists || {};
   const albums = cleanAlbumsDict(data.albums || {});
 
+  // Month of each counted track, resolved up front so every bucket it touches is read in one call.
+  const current = currentMonthId();
+  const trackMonths = tracks.map((rawTrack) => {
+    const track = normalizeTrack(rawTrack);
+    return track && track.title ? resolveTrackMonth(rawTrack.listenedMonth, current) : null;
+  });
+  const monthIds = [...new Set(trackMonths.filter(Boolean))];
+  const { index: monthIndex, buckets: monthBuckets } = await readMonthState(extBrowser, monthIds);
+  const touchedMonths = new Set();
+
   let newPlaysCount = 0;
 
-  for (const rawTrack of tracks) {
+  for (const [trackIndex, rawTrack] of tracks.entries()) {
     const track = normalizeTrack(rawTrack);
     if (!track || !track.title) continue;
 
+    const monthId = trackMonths[trackIndex];
     const trackDuration = Math.max(0, Math.round(track.durationSeconds || 0));
     totalPlays += 1;
     totalListeningSeconds += trackDuration;
@@ -750,6 +842,14 @@ export async function importHistoryTracks(payload, extBrowser) {
         }
       }
     }
+
+    recordPlayInBucket(monthBuckets[monthId], {
+      songKey,
+      artistKeys: artistKeysFor(track.artist),
+      albumKey: albumName ? makeAlbumKey(albumName, track.artist) : '',
+      seconds: trackDuration
+    });
+    touchedMonths.add(monthId);
   }
 
   for (const alb of Object.values(albums)) {
@@ -766,6 +866,11 @@ export async function importHistoryTracks(payload, extBrowser) {
     artists,
     albums
   };
+  if (touchedMonths.size > 0) {
+    const touched = {};
+    for (const id of touchedMonths) touched[id] = monthBuckets[id];
+    Object.assign(storageUpdates, buildMonthUpdates(monthIndex, touched));
+  }
   if (payload.newSyncState) {
     storageUpdates.historySyncState = payload.newSyncState;
   }

@@ -6,9 +6,10 @@ import {
   makeAlbumKey,
   normalizeTrack,
   sanitizeStorageData,
-  createExportBundleV2,
+  createExportBundle,
   isDangerousKey,
   PENDING_DURATIONS_KEY,
+  EXPORT_SCHEMA_VERSION,
   validateAndMigrateImport
 } from '../background/storage.js';
 
@@ -123,14 +124,14 @@ describe('Storage Module - sanitizeStorageData', () => {
   test('tolerates a missing or null storage payload', () => {
     assert.doesNotThrow(() => sanitizeStorageData(undefined));
     assert.doesNotThrow(() => sanitizeStorageData(null));
-    assert.doesNotThrow(() => createExportBundleV2(undefined));
-    assert.doesNotThrow(() => createExportBundleV2(null));
+    assert.doesNotThrow(() => createExportBundle(undefined));
+    assert.doesNotThrow(() => createExportBundle(null));
   });
 });
 
-describe('Storage Module - createExportBundleV2', () => {
-  test('produces a schema v2 bundle from stored state', () => {
-    const bundle = createExportBundleV2({
+describe('Storage Module - createExportBundle', () => {
+  test('produces an export bundle from stored state', () => {
+    const bundle = createExportBundle({
       totalPlays: 42,
       totalListeningSeconds: 3600,
       songs: { 'ok:::x': { title: 'Ok', artist: 'X', playCount: 2, durationSeconds: 300 } },
@@ -139,7 +140,7 @@ describe('Storage Module - createExportBundleV2', () => {
       historySyncState: { lastTrackTitle: 'Ok', lastTrackArtist: 'X', lastSyncTimestamp: 123 }
     });
 
-    assert.equal(bundle.schemaVersion, 2);
+    assert.equal(bundle.schemaVersion, EXPORT_SCHEMA_VERSION);
     assert.equal(bundle.metrics.totalPlays, 42);
     assert.equal(bundle.metrics.totalListeningSeconds, 3600);
     assert.ok(bundle.songs['ok:::x']);
@@ -147,7 +148,7 @@ describe('Storage Module - createExportBundleV2', () => {
   });
 
   test('carries the album tracklist so a backup restores without re-fetching', () => {
-    const bundle = createExportBundleV2({
+    const bundle = createExportBundle({
       totalPlays: 1,
       songs: {},
       artists: {},
@@ -180,10 +181,10 @@ describe('Storage Module - validateAndMigrateImport error codes (AD-10)', () => 
       error: 'Import payload must be a valid JSON object.'
     },
     {
-      label: 'a schema v2 bundle missing its dictionaries',
+      label: 'an export bundle missing its dictionaries',
       input: { schemaVersion: 2, songs: null, artists: {} },
-      errorCode: 'malformedSchemaV2',
-      error: 'Malformed Schema v2: songs or artists dictionary missing.'
+      errorCode: 'malformedBackup',
+      error: 'Malformed backup: songs or artists dictionary missing.'
     },
     {
       label: 'a backup with no recognisable collections',
@@ -206,7 +207,7 @@ describe('Storage Module - validateAndMigrateImport error codes (AD-10)', () => 
     });
   }
 
-  test('a valid schema v2 bundle carries no errorCode', () => {
+  test('a valid export bundle carries no errorCode', () => {
     const result = validateAndMigrateImport({
       schemaVersion: 2,
       songs: { 'ok:::x': { title: 'Ok', artist: 'X', playCount: 2, durationSeconds: 300 } },

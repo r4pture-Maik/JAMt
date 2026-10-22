@@ -198,7 +198,7 @@ test('refuses the history import from another extension', () => {
 
 test('keeps destructive configuration messages extension-page only', () => {
   const listener = loadBackground();
-  for (const type of ['RESET_STATS', 'IMPORT_DATA_V2', 'SET_ENRICHMENT_CONFIG', 'CLEAR_THUMBNAIL_CACHE']) {
+  for (const type of ['RESET_STATS', 'IMPORT_DATA', 'SET_ENRICHMENT_CONFIG', 'CLEAR_THUMBNAIL_CACHE']) {
     // From the content script: refused, even on a trusted origin.
     assert.equal(
       dispatch(listener, { type, payload: {} }, musicPage()).rejected,

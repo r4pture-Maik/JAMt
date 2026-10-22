@@ -521,6 +521,48 @@
     return path === '/history' || path.startsWith('/history');
   }
 
+  /** Cache of resolved month ids per history section (shelf DOM node). */
+  const historyShelfMonthCache = new WeakMap();
+
+  /**
+   * Month the plays in a history row's section belong to ('YYYY-MM').
+   *
+   * Relative sections (Today, Yesterday, This week, Last week) count as the
+   * current month. "<Month> <Year>" section headers count as that month. The
+   * header text is resolved by shared/month-keys.js (globalThis.YTMCMonths).
+   * Returns '' when the helper is unavailable, so the background falls back to
+   * the current month.
+   *
+   * @param {Element} itemEl A ytmusic-responsive-list-item-renderer element.
+   * @returns {string} A 'YYYY-MM' month id, or '' if it cannot be resolved.
+   */
+  function getHistoryItemMonth(itemEl) {
+    const monthHelpers = globalThis.YTMCMonths;
+    if (!monthHelpers || typeof monthHelpers.resolveHistorySectionMonth !== 'function') return '';
+
+    const shelf = itemEl && itemEl.closest ? itemEl.closest('ytmusic-shelf-renderer') : null;
+    if (!shelf) return monthHelpers.resolveHistorySectionMonth('', new Date(), []);
+
+    const cached = historyShelfMonthCache.get(shelf);
+    if (cached) return cached;
+
+    let headerText = '';
+    const headerCandidates = shelf.querySelectorAll('h2 yt-formatted-string, h2, #header .title, .header .title');
+    for (const el of headerCandidates) {
+      if (el.closest('ytmusic-responsive-list-item-renderer')) continue;
+      const text = (el.textContent || '').trim();
+      if (text) {
+        headerText = text;
+        break;
+      }
+    }
+
+    const locales = [document.documentElement.lang].filter(Boolean);
+    const month = monthHelpers.resolveHistorySectionMonth(headerText, new Date(), locales);
+    if (headerText) historyShelfMonthCache.set(shelf, month);
+    return month;
+  }
+
   function parseTrackFromItem(item) {
     if (!item) return null;
 
@@ -1209,6 +1251,7 @@
       for (const el of itemElements) {
         const track = parseTrackFromItem(el);
         if (track && track.title) {
+          track.listenedMonth = getHistoryItemMonth(el);
           parsedItems.push({ element: el, track });
         }
       }

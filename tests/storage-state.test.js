@@ -10,7 +10,8 @@ import {
   withStorageLock,
   importHistoryTracks,
   validateAndMigrateImport,
-  createExportBundleV2
+  createExportBundle,
+  EXPORT_SCHEMA_VERSION
 } from '../background/storage.js';
 
 /** In-memory stand-in for `browser.storage.local`. */
@@ -425,7 +426,7 @@ describe('Storage - validateAndMigrateImport legacy formats', () => {
       totalListeningSeconds: 99.6
     });
     assert.equal(result.valid, true);
-    assert.equal(result.bundle.schemaVersion, 2);
+    assert.equal(result.bundle.schemaVersion, EXPORT_SCHEMA_VERSION);
     assert.equal(result.bundle.totalPlays, 5);
     assert.equal(result.bundle.totalListeningSeconds, 100);
     assert.equal(result.bundle.historySyncState, null);
@@ -444,7 +445,7 @@ describe('Storage - validateAndMigrateImport legacy formats', () => {
     assert.deepEqual(result.bundle.historySyncState, { lastTrackTitle: 'X' });
   });
 
-  test('carries the sync watermark of a schema v2 bundle', () => {
+  test('carries the sync watermark of an export bundle', () => {
     const result = validateAndMigrateImport({
       schemaVersion: 2,
       metrics: { totalPlays: 3.4, totalListeningSeconds: -5 },
@@ -463,27 +464,27 @@ describe('Storage - validateAndMigrateImport legacy formats', () => {
   });
 });
 
-describe('Storage - createExportBundleV2 fallbacks', () => {
+describe('Storage - createExportBundle fallbacks', () => {
   test('tolerates a missing payload and falls back to the supplied version', () => {
-    const bundle = createExportBundleV2(null, '9.9.9');
-    assert.equal(bundle.schemaVersion, 2);
+    const bundle = createExportBundle(null, '9.9.9');
+    assert.equal(bundle.schemaVersion, EXPORT_SCHEMA_VERSION);
     assert.equal(bundle.extensionVersion, '9.9.9');
     assert.deepEqual(bundle.songs, {});
     assert.equal(bundle.syncWatermark.lastTrackTitle, undefined);
   });
 
   test('uses "unknown" when no version is given and reads the live manifest when available', () => {
-    assert.equal(createExportBundleV2({}).extensionVersion, 'unknown');
+    assert.equal(createExportBundle({}).extensionVersion, 'unknown');
     globalThis.chrome = { runtime: { getManifest: () => ({ version: '3.2.1' }) } };
     try {
-      assert.equal(createExportBundleV2({}, '0.0.0').extensionVersion, '3.2.1');
+      assert.equal(createExportBundle({}, '0.0.0').extensionVersion, '3.2.1');
     } finally {
       delete globalThis.chrome;
     }
   });
 
   test('derives totalTracks from allTracks and keeps optional album fields', () => {
-    const bundle = createExportBundleV2({
+    const bundle = createExportBundle({
       albums: {
         'rec:::band': {
           album: 'Rec', artist: 'Band', playCount: 1, coverUrl: 'https://i.ytimg.com/c', albumBrowseId: 'MPREb_1',

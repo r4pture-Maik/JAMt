@@ -210,7 +210,7 @@ describe('Duration Module - guards and fallbacks', () => {
     const store = {
       songs: { 's:::a, b': { title: 'S' } },
       artists: { a: { artist: 'A' }, b: { artist: 'B' } },
-      albums: { 'rec:::a, b': { album: 'Rec' } }
+      albums: { 'rec:::a': { album: 'Rec' } }
     };
     await recordListeningDuration(
       { songTitle: 'S', songArtist: 'A, B', songAlbum: 'Rec', deltaSeconds: 5 },
@@ -219,7 +219,7 @@ describe('Duration Module - guards and fallbacks', () => {
     assert.equal(store.songs['s:::a, b'].durationSeconds, 5);
     assert.equal(store.artists.a.durationSeconds, 5);
     assert.equal(store.artists.b.durationSeconds, 5);
-    assert.equal(store.albums['rec:::a, b'].durationSeconds, 5);
+    assert.equal(store.albums['rec:::a'].durationSeconds, 5);
   });
 
   test('only credits artists and albums that already exist', async () => {

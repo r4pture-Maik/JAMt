@@ -5,6 +5,14 @@
  */
 
 import { cleanAlbumsDict, calculateCompletePlays } from './scoring.js';
+// Side-effect import: publishes the key builders on globalThis.YTMCShared so the
+// content script and the background share one implementation.
+import '../shared/text-keys.js';
+
+const textKeys = globalThis.YTMCShared;
+if (!textKeys || typeof textKeys.makeSongKey !== 'function') {
+  throw new Error('[JAMt] shared/text-keys.js failed to register globalThis.YTMCShared');
+}
 
 // Side-effect import: registers the month helpers on `globalThis.YTMCMonths`.
 import '../shared/month-keys.js';
@@ -23,17 +31,130 @@ import {
  */
 export const PENDING_DURATIONS_KEY = 'pendingDurations';
 
-// Consistent dictionary key generators
-export function makeSongKey(title, artist) {
-  return `${(title || '').trim().toLowerCase()}:::${(artist || '').trim().toLowerCase()}`;
+// Consistent dictionary key generators (see shared/text-keys.js)
+export const {
+  cleanText,
+  normalizeKeyPart,
+  splitArtists,
+  primaryArtist,
+  cleanTrackTitle,
+  makeSongKey,
+  makeArtistKey,
+  makeAlbumKey
+} = textKeys;
+
+/**
+ * Coerces an untrusted counter into a non-negative integer. An imported
+ * `"playCount": "5"` would otherwise turn `+=` into string concatenation.
+ *
+ * @param {unknown} value
+ * @returns {number}
+ */
+export function toCount(value) {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-export function makeArtistKey(artist) {
-  return (artist || '').trim().toLowerCase();
+/**
+ * Adds `amount` to `dict[key]` using own properties only, so a track titled
+ * "constructor" or "toString" counts from 0 instead of an inherited member.
+ *
+ * @param {Record<string, number>} dict
+ * @param {string} key
+ * @param {number} [amount=1]
+ */
+export function incrementCount(dict, key, amount = 1) {
+  if (isDangerousKey(key)) return;
+  const current = Object.prototype.hasOwnProperty.call(dict, key) ? toCount(dict[key]) : 0;
+  dict[key] = current + amount;
 }
 
-export function makeAlbumKey(album, artist) {
-  return `${(album || '').trim().toLowerCase()}:::${(artist || '').trim().toLowerCase()}`;
+/**
+ * Credits one play (and its duration) to every artist of a credit string.
+ *
+ * @param {Record<string, object>} artists
+ * @param {string} artistCredit
+ * @param {number} plays
+ * @param {number} durationSeconds
+ */
+export function addArtistPlays(artists, artistCredit, plays, durationSeconds) {
+  for (const rawName of splitArtists(artistCredit)) {
+    const aKey = makeArtistKey(rawName);
+    if (!Object.prototype.hasOwnProperty.call(artists, aKey)) {
+      artists[aKey] = { artist: rawName, playCount: plays, durationSeconds };
+    } else {
+      artists[aKey].playCount = toCount(artists[aKey].playCount) + plays;
+      artists[aKey].durationSeconds = toCount(artists[aKey].durationSeconds) + durationSeconds;
+    }
+  }
+}
+
+/**
+ * Copies a `tracksListened` map with cleaned titles and numeric counts, merging
+ * entries that only differed by whitespace or upload tags.
+ *
+ * @param {unknown} listened
+ * @param {string} artist
+ * @returns {Record<string, number>}
+ */
+function cleanTracksListened(listened, artist) {
+  const out = {};
+  if (!listened || typeof listened !== 'object') return out;
+  for (const [t, c] of Object.entries(listened)) {
+    const title = cleanTrackTitle(t, artist);
+    const count = toCount(c);
+    if (title && count > 0) incrementCount(out, title, count);
+  }
+  return out;
+}
+
+const NOT_AN_ALBUM_RE = /^(?:single(?:\s*-\s*ep)?|ep|\d+:\d+(?::\d+)?|\d{4})$/i;
+
+/**
+ * Cleans title/artist/album/isSingle of a song-like record. Shared by
+ * normalizeTrack (live data) and sanitizeStorageData (stored / imported data),
+ * which used to carry two copies of this logic.
+ *
+ * @param {object} raw
+ * @returns {{ title: string, artist: string, album: string, isSingle: boolean }}
+ */
+function cleanSongFields(raw) {
+  let artist = cleanText(raw.artist);
+  let album = cleanText(raw.album);
+  let isSingle = Boolean(raw.isSingle);
+
+  // "Artist • Album" (or "Artist • 3:45" / "Artist • 2019" / "Artist • Single")
+  if (artist.includes('•')) {
+    const parts = artist.split('•').map(p => p.trim()).filter(Boolean);
+    artist = parts[0] || '';
+    if (!album && parts[1] && !NOT_AN_ALBUM_RE.test(parts[1]) && !/^single/i.test(parts[1])) {
+      album = parts[1];
+    }
+  }
+
+  if (album.includes('•')) {
+    album = album.split('•').map(p => p.trim()).filter(Boolean)[0] || '';
+  }
+
+  // Discard album if single, ep, or duration/year
+  if (album && NOT_AN_ALBUM_RE.test(album)) {
+    isSingle = true;
+    album = '';
+  }
+
+  // If album and artist are identical, it's not a real album
+  if (album && artist && album.toLowerCase() === artist.toLowerCase()) {
+    album = '';
+    isSingle = true;
+  }
+
+  artist = artist || 'Unknown Artist';
+  return {
+    title: cleanTrackTitle(raw.title, artist),
+    artist,
+    album,
+    isSingle: isSingle || !album
+  };
 }
 
 /**
@@ -111,47 +232,10 @@ export function withStorageLock(task) {
  */
 export function normalizeTrack(rawTrack) {
   if (!rawTrack) return null;
-  let title = (rawTrack.title || '').trim();
-  let artist = (rawTrack.artist || '').trim();
-  let album = (rawTrack.album || '').trim();
-  let isSingle = Boolean(rawTrack.isSingle);
-
-  // If artist contains bullet "•" (e.g. "Artist • Album")
-  if (artist.includes('•')) {
-    const parts = artist.split('•').map(p => p.trim()).filter(Boolean);
-    artist = parts[0] || 'Unknown Artist';
-    if (!album && parts[1] && !/^\d+:\d+$/.test(parts[1]) && !/^\d{4}$/.test(parts[1]) && !/^single/i.test(parts[1])) {
-      album = parts[1];
-    }
-  }
-
-  // If album contains bullet "•"
-  if (album.includes('•')) {
-    const parts = album.split('•').map(p => p.trim()).filter(Boolean);
-    album = parts[0] || '';
-  }
-
-  // Discard album if single, ep, or duration/year
-  if (album && (/^single(\s*-\s*ep)?$/i.test(album) || /^ep$/i.test(album) || /^\d+:\d+(:\d+)?$/.test(album) || /^\d{4}$/.test(album))) {
-    isSingle = true;
-    album = '';
-  }
-
-  // If album and artist are identical, it's not a real album
-  if (album && artist && album.toLowerCase() === artist.toLowerCase()) {
-    album = '';
-    isSingle = true;
-  }
-
-  const durationSeconds = Math.max(0, Math.round(rawTrack.durationSeconds || 0));
-
   return {
     ...rawTrack,
-    title,
-    artist: artist || 'Unknown Artist',
-    album,
-    isSingle: isSingle || !album,
-    durationSeconds
+    ...cleanSongFields(rawTrack),
+    durationSeconds: toCount(rawTrack.durationSeconds)
   };
 }
 
@@ -171,61 +255,39 @@ export function sanitizeStorageData(data) {
 
   // 1. Sanitize songs
   for (const [key, song] of Object.entries(rawSongs)) {
-    if (!song || !song.title) continue;
+    if (!song || typeof song !== 'object' || !cleanText(song.title)) {
+      modified = true;
+      continue;
+    }
     if (isDangerousKey(key)) {
       // An untrusted import could otherwise assign to Object.prototype.
       modified = true;
       continue;
     }
-    let title = song.title.trim();
-    let artist = (song.artist || '').trim();
-    let album = (song.album || '').trim();
-    let isSingle = Boolean(song.isSingle);
-    const durationSeconds = Math.max(0, Math.round(song.durationSeconds || 0));
+    const fields = cleanSongFields(song);
+    const durationSeconds = toCount(song.durationSeconds);
+    const playCount = toCount(song.playCount) || 1;
 
-    if (artist.includes('•')) {
-      const parts = artist.split('•').map(p => p.trim()).filter(Boolean);
-      artist = parts[0] || 'Unknown Artist';
-      if (!album && parts[1] && !/^\d+:\d+$/.test(parts[1]) && !/^\d{4}$/.test(parts[1]) && !/^single/i.test(parts[1])) {
-        album = parts[1];
-      }
+    if (fields.title !== song.title || fields.artist !== song.artist || fields.album !== (song.album || '')
+      || fields.isSingle !== Boolean(song.isSingle)
+      || (song.durationSeconds !== undefined && durationSeconds !== song.durationSeconds)
+      || (song.playCount !== undefined && playCount !== song.playCount)) {
       modified = true;
     }
 
-    if (album.includes('•')) {
-      const parts = album.split('•').map(p => p.trim()).filter(Boolean);
-      album = parts[0] || '';
-      modified = true;
-    }
-
-    if (album && (/^single(\s*-\s*ep)?$/i.test(album) || /^ep$/i.test(album) || /^\d+:\d+(:\d+)?$/.test(album) || /^\d{4}$/.test(album))) {
-      isSingle = true;
-      album = '';
-      modified = true;
-    }
-
-    if (album && artist && album.toLowerCase() === artist.toLowerCase()) {
-      album = '';
-      isSingle = true;
-      modified = true;
-    }
-
-    const cleanKey = makeSongKey(title, artist);
+    const cleanKey = makeSongKey(fields.title, fields.artist);
     if (cleanKey !== key) modified = true;
 
-    if (!cleanSongs[cleanKey]) {
-      cleanSongs[cleanKey] = {
-        ...song,
-        title,
-        artist: artist || 'Unknown Artist',
-        album,
-        isSingle: isSingle || !album,
-        durationSeconds
-      };
+    if (!Object.prototype.hasOwnProperty.call(cleanSongs, cleanKey)) {
+      cleanSongs[cleanKey] = { ...song, ...fields, playCount, durationSeconds };
     } else {
-      cleanSongs[cleanKey].playCount = (cleanSongs[cleanKey].playCount || 0) + (song.playCount || 1);
-      cleanSongs[cleanKey].durationSeconds = (cleanSongs[cleanKey].durationSeconds || 0) + durationSeconds;
-      if (album && !cleanSongs[cleanKey].album) cleanSongs[cleanKey].album = album;
+      const target = cleanSongs[cleanKey];
+      target.playCount += playCount;
+      target.durationSeconds += durationSeconds;
+      if (fields.album && !target.album) {
+        target.album = fields.album;
+        target.isSingle = false;
+      }
       modified = true;
     }
   }
@@ -247,15 +309,19 @@ export function sanitizeStorageData(data) {
 
   // 2. Sanitize albums
   for (const [key, alb] of Object.entries(rawAlbums)) {
-    if (!alb || !alb.album) continue;
+    if (!alb || typeof alb !== 'object' || !cleanText(alb.album)) {
+      modified = true;
+      continue;
+    }
     if (isDangerousKey(key)) {
       // Same as above: never let imported data reach Object.prototype.
       modified = true;
       continue;
     }
-    let albumName = alb.album.trim();
-    let albumArtist = (alb.artist || '').trim();
-    const durationSeconds = Math.max(0, Math.round(alb.durationSeconds || 0));
+    const albumName = cleanText(alb.album);
+    let albumArtist = cleanText(alb.artist);
+    const durationSeconds = toCount(alb.durationSeconds);
+    if (albumName !== alb.album) modified = true;
 
     if (albumArtist.includes('•')) {
       albumArtist = albumArtist.split('•')[0].trim();
@@ -301,28 +367,39 @@ export function sanitizeStorageData(data) {
     const cleanAlbKey = makeAlbumKey(albumName, albumArtist);
     if (cleanAlbKey !== key) modified = true;
 
-    if (!cleanAlbums[cleanAlbKey]) {
+    const playCount = toCount(alb.playCount) || 1;
+    if (!Object.prototype.hasOwnProperty.call(cleanAlbums, cleanAlbKey)) {
       cleanAlbums[cleanAlbKey] = {
         ...alb,
         album: albumName,
         artist: albumArtist || 'Unknown Artist',
-        durationSeconds
+        playCount,
+        durationSeconds,
+        tracksListened: cleanTracksListened(alb.tracksListened, albumArtist)
       };
+      if (alb.tracksListened) {
+        cleanAlbums[cleanAlbKey].uniqueTracksCount = Object.keys(cleanAlbums[cleanAlbKey].tracksListened).length;
+      } else {
+        delete cleanAlbums[cleanAlbKey].tracksListened;
+      }
+      if (!Array.isArray(alb.allTracks)) delete cleanAlbums[cleanAlbKey].allTracks;
       cleanAlbums[cleanAlbKey].completePlays = calculateCompletePlays(cleanAlbums[cleanAlbKey]);
     } else {
-      cleanAlbums[cleanAlbKey].playCount = (cleanAlbums[cleanAlbKey].playCount || 0) + (alb.playCount || 1);
-      cleanAlbums[cleanAlbKey].durationSeconds = (cleanAlbums[cleanAlbKey].durationSeconds || 0) + durationSeconds;
-      if (alb.totalTracks && !cleanAlbums[cleanAlbKey].totalTracks) cleanAlbums[cleanAlbKey].totalTracks = alb.totalTracks;
-      if (alb.allTracks && !cleanAlbums[cleanAlbKey].allTracks) cleanAlbums[cleanAlbKey].allTracks = alb.allTracks;
-      if (alb.albumBrowseId && !cleanAlbums[cleanAlbKey].albumBrowseId) cleanAlbums[cleanAlbKey].albumBrowseId = alb.albumBrowseId;
-      if (alb.tracksListened) {
-        if (!cleanAlbums[cleanAlbKey].tracksListened) cleanAlbums[cleanAlbKey].tracksListened = {};
-        for (const [t, c] of Object.entries(alb.tracksListened)) {
-          cleanAlbums[cleanAlbKey].tracksListened[t] = (cleanAlbums[cleanAlbKey].tracksListened[t] || 0) + c;
+      const target = cleanAlbums[cleanAlbKey];
+      target.playCount += playCount;
+      target.durationSeconds += durationSeconds;
+      if (alb.totalTracks && !target.totalTracks) target.totalTracks = alb.totalTracks;
+      if (Array.isArray(alb.allTracks) && !target.allTracks) target.allTracks = alb.allTracks;
+      if (alb.albumBrowseId && !target.albumBrowseId) target.albumBrowseId = alb.albumBrowseId;
+      if (alb.coverUrl && !target.coverUrl) target.coverUrl = alb.coverUrl;
+      if (alb.tracksListened && typeof alb.tracksListened === 'object') {
+        if (!target.tracksListened) target.tracksListened = {};
+        for (const [t, c] of Object.entries(cleanTracksListened(alb.tracksListened, albumArtist))) {
+          incrementCount(target.tracksListened, t, c);
         }
-        cleanAlbums[cleanAlbKey].uniqueTracksCount = Object.keys(cleanAlbums[cleanAlbKey].tracksListened).length;
+        target.uniqueTracksCount = Object.keys(target.tracksListened).length;
       }
-      cleanAlbums[cleanAlbKey].completePlays = calculateCompletePlays(cleanAlbums[cleanAlbKey]);
+      target.completePlays = calculateCompletePlays(target);
       modified = true;
     }
   }
@@ -331,25 +408,16 @@ export function sanitizeStorageData(data) {
   const cleanArtists = {};
   for (const song of Object.values(cleanSongs)) {
     if (!song.artist || song.artist === 'Unknown Artist') continue;
-    const artistList = song.artist.split(/[,&/]| feat\.? | ft\.? /i).map(a => a.trim()).filter(Boolean);
-    artistList.forEach(rawName => {
-      const aKey = makeArtistKey(rawName);
-      if (!cleanArtists[aKey]) {
-        cleanArtists[aKey] = {
-          artist: rawName,
-          playCount: song.playCount || 1,
-          durationSeconds: song.durationSeconds || 0
-        };
-      } else {
-        cleanArtists[aKey].playCount += (song.playCount || 1);
-        cleanArtists[aKey].durationSeconds = (cleanArtists[aKey].durationSeconds || 0) + (song.durationSeconds || 0);
-      }
-    });
+    addArtistPlays(cleanArtists, song.artist, song.playCount, song.durationSeconds);
   }
 
-  const oldArtistCount = Object.keys(rawArtists).length;
-  const newArtistCount = Object.keys(cleanArtists).length;
-  if (oldArtistCount !== newArtistCount) modified = true;
+  // Any difference in keys or counters means the stored dictionary was stale.
+  const rawArtistKeys = Object.keys(rawArtists);
+  if (rawArtistKeys.length !== Object.keys(cleanArtists).length
+    || rawArtistKeys.some(k => !Object.prototype.hasOwnProperty.call(cleanArtists, k)
+      || !rawArtists[k] || rawArtists[k].playCount !== cleanArtists[k].playCount)) {
+    modified = true;
+  }
 
   return {
     modified,
@@ -792,16 +860,7 @@ export async function importHistoryTracks(payload, extBrowser) {
     }
 
     if (track.artist) {
-      const artistList = track.artist.split(/[,&/]| feat\.? | ft\.? /i).map(a => a.trim()).filter(Boolean);
-      artistList.forEach(rawName => {
-        const aKey = makeArtistKey(rawName);
-        if (!artists[aKey]) {
-          artists[aKey] = { artist: rawName, playCount: 1, durationSeconds: trackDuration };
-        } else {
-          artists[aKey].playCount = (artists[aKey].playCount || 0) + 1;
-          artists[aKey].durationSeconds = (artists[aKey].durationSeconds || 0) + trackDuration;
-        }
-      });
+      addArtistPlays(artists, track.artist, 1, trackDuration);
     }
 
     if (albumName) {
@@ -826,7 +885,7 @@ export async function importHistoryTracks(payload, extBrowser) {
         albums[albumKey].playCount = (albums[albumKey].playCount || 0) + 1;
         albums[albumKey].durationSeconds = (albums[albumKey].durationSeconds || 0) + trackDuration;
         if (!albums[albumKey].tracksListened) albums[albumKey].tracksListened = {};
-        albums[albumKey].tracksListened[track.title] = (albums[albumKey].tracksListened[track.title] || 0) + 1;
+        incrementCount(albums[albumKey].tracksListened, track.title);
         albums[albumKey].uniqueTracksCount = Object.keys(albums[albumKey].tracksListened).length;
         if (track.albumBrowseId && !albums[albumKey].albumBrowseId) {
           albums[albumKey].albumBrowseId = track.albumBrowseId;

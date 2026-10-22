@@ -1696,7 +1696,7 @@
       for (const item of items) {
         const parsed = parseTrackFromItem(item);
         if (!parsed || !parsed.album || !parsed.coverUrl) continue;
-        const key = `${parsed.album.trim().toLowerCase()}:::${(parsed.artist || '').trim().toLowerCase()}`;
+        const key = globalThis.YTMCShared.makeAlbumKey(parsed.album, parsed.artist);
         if (missingKeys.has(key) && !seen.has(key)) {
           seen.add(key);
           coversToBackfill.push({
@@ -2009,7 +2009,7 @@
             // AD-8: the sentinel is the storage dictionary's key, so it is matched in
             // English and stays English. Nothing user-facing is produced from it
             // here.
-            const key = `${track.title.trim().toLowerCase()}:::${(track.artist || 'Unknown Artist').trim().toLowerCase()}`;
+            const key = globalThis.YTMCShared.makeSongKey(track.title, track.artist || 'Unknown Artist');
             const updatedSongs = changes.songs.newValue || {};
             if (updatedSongs[key] && typeof updatedSongs[key].playCount === 'number') {
               currentSongPlays = updatedSongs[key].playCount;

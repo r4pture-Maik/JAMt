@@ -55,6 +55,11 @@ export async function recordListeningDuration(payload, extBrowser, invalidateCac
     const albums = data.albums || {};
     const pending = data[PENDING_DURATIONS_KEY] || {};
 
+    // Ticks are booked to the current month. Read in the same lock as the all-time data.
+    const monthId = currentMonthId();
+    const { index: monthIndex, buckets: monthBuckets } = await readMonthState(extBrowser, [monthId]);
+    let monthUpdates = {};
+
     let songDuration = 0;
 
     if (songs[songKey]) {
@@ -79,6 +84,16 @@ export async function recordListeningDuration(payload, extBrowser, invalidateCac
           albums[albumKey].durationSeconds = (albums[albumKey].durationSeconds || 0) + delta;
         }
       }
+
+      // 4. Same delta, booked to the current month (only keys that exist in the all-time dicts).
+      const monthAlbumKey = makeAlbumKey(album, artist);
+      recordDurationInBucket(monthBuckets[monthId], {
+        songKey,
+        artistKeys: artistKeysFor(artist).filter((aKey) => artists[aKey]),
+        albumKey: album && !isSingle && albums[monthAlbumKey] ? monthAlbumKey : '',
+        seconds: delta
+      });
+      monthUpdates = buildMonthUpdates(monthIndex, { [monthId]: monthBuckets[monthId] });
     } else {
       // The play was never registered (service worker asleep, or the 5s play
       // threshold not reached). Creating a `playCount: 1` record here would
@@ -94,6 +109,7 @@ export async function recordListeningDuration(payload, extBrowser, invalidateCac
       albums
     };
     if (Object.keys(pending).length > 0) updates[PENDING_DURATIONS_KEY] = pending;
+    Object.assign(updates, monthUpdates);
 
     await extBrowser.storage.local.set(updates);
 

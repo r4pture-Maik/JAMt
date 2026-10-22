@@ -1,7 +1,7 @@
 /**
  * JAMt - Native MV3 Background Service Worker
  * Orchestrates scoring, persistent storage, thumbnail caching,
- * continuous playback duration accumulation, and Schema v2 data bridges.
+ * continuous playback duration accumulation, and the export/import data bridge.
  */
 
 // Side-effect import: registers the shared locale runtime on `globalThis.YTMCI18n`.
@@ -25,13 +25,24 @@ import {
   getStats,
   resetStats,
   invalidateStatsCache,
-  createExportBundleV2,
+  createExportBundle,
   validateAndMigrateImport,
   importHistoryTracks,
   withStorageLock,
   isDangerousKey,
+  currentMonthId,
   PENDING_DURATIONS_KEY
 } from './storage.js';
+
+import {
+  artistKeysFor,
+  buildMonthUpdates,
+  collectMonthsForExport,
+  getMonthlyStats,
+  listStoredMonthKeys,
+  readMonthState,
+  recordPlayInBucket
+} from './monthly.js';
 
 // cacheRemoteThumbnail is deliberately absent: an object URL minted in the service
 // worker cannot be displayed by an extension page, and downloading the image twice
@@ -140,13 +151,13 @@ function debugLog(tag, message, data) {
 /**
  * Message types only an extension page (popup, Details) may send.
  *
- * They overwrite the whole database (RESET_STATS, IMPORT_DATA_V2) or change
+ * They overwrite the whole database (RESET_STATS, IMPORT_DATA) or change
  * extension configuration, so the boundary is enforced explicitly rather than
  * left to the accident that a page cannot reach `runtime.onMessage`.
  */
 const EXTENSION_PAGE_ONLY_TYPES = new Set([
   'RESET_STATS',
-  'IMPORT_DATA_V2',
+  'IMPORT_DATA',
   'FETCH_MISSING_TRACKLISTS',
   'SET_ENRICHMENT_CONFIG',
   'CLEAR_THUMBNAIL_CACHE',
@@ -182,7 +193,7 @@ const MAX_HISTORY_IMPORT_TRACKS = 5000;
  * Storage key for the resumable enrichment queue.
  *
  * Declared with the other storage keys rather than next to the pump: the import
- * handler clears it, and `handleImportDataV2` is defined above that point.
+ * handler clears it, and `handleImportData` is defined above that point.
  * A `const` used before its declaration is a temporal dead zone error, not a
  * hoisted value, so the two had to stay in that order.
  */
@@ -370,6 +381,13 @@ extBrowser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
 
+    case 'GET_MONTHLY_STATS': {
+      getMonthlyStats(extBrowser, message.payload && message.payload.months)
+        .then(stats => sendResponse({ status: 'ok', data: stats }))
+        .catch(err => sendResponse({ status: 'error', error: err.message }));
+      return true;
+    }
+
     case 'GET_ALBUM_DETAILS': {
       handleGetAlbumDetails(message.payload)
         .then(details => sendResponse({ status: 'ok', data: details }))
@@ -447,20 +465,20 @@ extBrowser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
 
-    case 'EXPORT_DATA_V2': {
-      handleExportDataV2()
+    case 'EXPORT_DATA': {
+      handleExportData()
         .then(bundle => sendResponse({ status: 'ok', data: bundle }))
         .catch(err => sendResponse({ status: 'error', error: err.message }));
       return true;
     }
 
-    case 'IMPORT_DATA_V2': {
-      handleImportDataV2(message.payload)
+    case 'IMPORT_DATA': {
+      handleImportData(message.payload)
         .then(res => sendResponse({ status: 'ok', data: res }))
         .catch(err => sendResponse({
           status: 'error',
           error: err.message,
-          // See handleImportDataV2: the UI localizes from the code, not the sentence.
+          // See handleImportData: the UI localizes from the code, not the sentence.
           ...(err.errorCode ? { errorCode: err.errorCode } : {})
         }));
       return true;
@@ -507,6 +525,10 @@ async function handleTrackPlayed(rawTrack) {
     const artists = data.artists || {};
     const albums = cleanAlbumsDict(data.albums || {});
     const pendingDurations = data[PENDING_DURATIONS_KEY] || {};
+
+    // The play is booked to the month it happens in.
+    const monthId = currentMonthId();
+    const { index: monthIndex, buckets: monthBuckets } = await readMonthState(extBrowser, [monthId]);
 
     // Drain any duration that accrued before this play was ever registered. Only
     // the parked delta is applied: live ticks already added their own seconds
@@ -595,6 +617,13 @@ async function handleTrackPlayed(rawTrack) {
       songPlays: songs[songKey].playCount
     };
 
+    recordPlayInBucket(monthBuckets[monthId], {
+      songKey,
+      artistKeys: artistKeysFor(track.artist),
+      albumKey: albumName ? makeAlbumKey(albumName, track.artist) : '',
+      seconds: durationDelta
+    });
+
     const updates = {
       totalPlays,
       songs,
@@ -603,6 +632,7 @@ async function handleTrackPlayed(rawTrack) {
       currentTrack
     };
     if (Object.keys(pendingDurations).length > 0) updates[PENDING_DURATIONS_KEY] = pendingDurations;
+    Object.assign(updates, buildMonthUpdates(monthIndex, { [monthId]: monthBuckets[monthId] }));
 
     await extBrowser.storage.local.set(updates);
 
@@ -635,9 +665,9 @@ async function handleTrackPlayed(rawTrack) {
 }
 
 /**
- * Handles 1-click export of data bundle conforming to Schema v2
+ * Handles 1-click export of the current export bundle format
  */
-async function handleExportDataV2() {
+async function handleExportData() {
   const data = await extBrowser.storage.local.get([
     'totalPlays',
     'totalListeningSeconds',
@@ -646,13 +676,16 @@ async function handleExportDataV2() {
     'albums',
     'historySyncState'
   ]);
-  return createExportBundleV2(data);
+  const months = await collectMonthsForExport(extBrowser);
+  // extBrowser is the namespace this engine actually exposes, so the bundle
+  // always carries the shipped manifest version.
+  return createExportBundle({ ...data, months }, extBrowser.runtime.getManifest().version);
 }
 
 /**
- * Handles validated import and migration of Schema v1 or v2 backups
+ * Handles validated import and migration of any supported backup
  */
-async function handleImportDataV2(payload) {
+async function handleImportData(payload) {
   const migration = validateAndMigrateImport(payload);
   if (!migration.valid) {
     // The machine code has to travel with the message: the Details page maps it to
@@ -666,6 +699,11 @@ async function handleImportDataV2(payload) {
 
   const bundle = migration.bundle;
   await withStorageLock(async () => {
+    const monthUpdates = buildMonthUpdates([], bundle.months || {});
+    // Months of the replaced library that the bundle does not overwrite. Removed
+    // only after the set succeeds, so a failed write never loses monthly data.
+    const staleMonthKeys = (await listStoredMonthKeys(extBrowser)).filter(key => !(key in monthUpdates));
+
     await extBrowser.storage.local.set({
       totalPlays: bundle.totalPlays,
       totalListeningSeconds: bundle.totalListeningSeconds,
@@ -680,8 +718,10 @@ async function handleImportDataV2(payload) {
       // enrichment job targets the previous library's albums and is dropped; a new
       // one is queued immediately below against the imported albums.
       scanProgress: null,
-      [ENRICHMENT_QUEUE_KEY]: null
+      [ENRICHMENT_QUEUE_KEY]: null,
+      ...monthUpdates
     });
+    if (staleMonthKeys.length > 0) await extBrowser.storage.local.remove(staleMonthKeys);
   });
 
   invalidateStatsCache();
@@ -715,7 +755,7 @@ async function handleImportHistory(payload) {
 
   const result = await importHistoryTracks(payload, extBrowser);
 
-  // Queued rather than awaited, for the same reason as handleImportDataV2: a full
+  // Queued rather than awaited, for the same reason as handleImportData: a full
   // enrichment batch outlives the MV3 per-event budget, and this handler must
   // still be able to answer the content script's IMPORT_HISTORY_TRACKS callback.
   const queued = await enqueueAlbumEnrichment();

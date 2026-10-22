@@ -1,13 +1,14 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createExportBundleV2,
-  validateAndMigrateImport
+  createExportBundle,
+  validateAndMigrateImport,
+  EXPORT_SCHEMA_VERSION
 } from '../background/storage.js';
 import { calculateCompletePlays } from '../background/scoring.js';
 
-describe('Data Bridge - createExportBundleV2', () => {
-  test('creates compliant Schema v2 export bundle', () => {
+describe('Data Bridge - createExportBundle', () => {
+  test('creates a compliant export bundle', () => {
     const rawStorage = {
       totalPlays: 42,
       totalListeningSeconds: 7800,
@@ -50,9 +51,9 @@ describe('Data Bridge - createExportBundleV2', () => {
       privateAuthToken: 'secret_token_that_must_not_leak'
     };
 
-    const bundle = createExportBundleV2(rawStorage, '1.1.0');
+    const bundle = createExportBundle(rawStorage, '1.1.0');
 
-    assert.equal(bundle.schemaVersion, 2);
+    assert.equal(bundle.schemaVersion, EXPORT_SCHEMA_VERSION);
     assert.equal(bundle.extensionVersion, '1.1.0');
     assert.ok(bundle.exportedAt);
     assert.equal(bundle.metrics.totalPlays, 42);
@@ -69,8 +70,8 @@ describe('Data Bridge - createExportBundleV2', () => {
 });
 
 describe('Data Bridge - validateAndMigrateImport', () => {
-  test('validates valid Schema v2 bundle', () => {
-    const validV2 = {
+  test('validates a bundle from an older supported format', () => {
+    const olderBundle = {
       schemaVersion: 2,
       exportedAt: '2026-09-22T00:00:00.000Z',
       extensionVersion: '1.1.0',
@@ -98,14 +99,14 @@ describe('Data Bridge - validateAndMigrateImport', () => {
       albums: {}
     };
 
-    const res = validateAndMigrateImport(validV2);
+    const res = validateAndMigrateImport(olderBundle);
     assert.ok(res.valid);
     assert.equal(res.bundle.totalPlays, 10);
     assert.equal(res.bundle.totalListeningSeconds, 1200);
     assert.ok(res.bundle.songs['track:::band']);
   });
 
-  test('migrates legacy Schema v1 format without schemaVersion', () => {
+  test('migrates a legacy flat backup without schemaVersion', () => {
     const legacyV1 = {
       totalPlays: 50,
       songs: {
@@ -135,7 +136,7 @@ describe('Data Bridge - validateAndMigrateImport', () => {
 
     const res = validateAndMigrateImport(legacyV1);
     assert.ok(res.valid);
-    assert.equal(res.bundle.schemaVersion, 2);
+    assert.equal(res.bundle.schemaVersion, EXPORT_SCHEMA_VERSION);
     assert.equal(res.bundle.totalPlays, 50);
     assert.equal(res.bundle.totalListeningSeconds, 0); // defaults to 0
     assert.ok(res.bundle.songs['song a:::artist a']);
@@ -193,8 +194,8 @@ describe('Data Bridge - validateAndMigrateImport', () => {
 
     assert.equal(album.completePlays, 1, 'Nurture should be marked with 1 complete play');
 
-    const exported = createExportBundleV2(importRes.bundle, '1.1.0');
-    assert.equal(exported.schemaVersion, 2);
+    const exported = createExportBundle(importRes.bundle, '1.1.0');
+    assert.equal(exported.schemaVersion, EXPORT_SCHEMA_VERSION);
     const exportedAlb = exported.albums['nurture:::porter robinson'];
     assert.equal(exportedAlb.completePlays, 1);
     assert.equal(exportedAlb.totalTracks, 14);

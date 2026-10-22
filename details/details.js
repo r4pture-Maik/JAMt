@@ -1651,7 +1651,7 @@ function showImportExportMessage(msg, isError = false) {
 }
 
 /**
- * Maps a rejected IMPORT_DATA_V2 response to a message the reader can act on.
+ * Maps a rejected IMPORT_DATA response to a message the reader can act on.
  *
  * A3 validates the bundle and, on failure, returns a machine `errorCode`
  * alongside the unchanged English `error` string. The code is what gets
@@ -1665,7 +1665,7 @@ function showImportExportMessage(msg, isError = false) {
 function describeImportFailure(res) {
   const known = {
     importInvalidJson: 'msg_import_error_not_json',
-    malformedSchemaV2: 'msg_import_error_bad_schema',
+    malformedBackup: 'msg_import_error_bad_schema',
     unrecognizedBackupFormat: 'msg_import_error_unrecognized_format'
   };
   const key = res && res.errorCode ? known[res.errorCode] : null;
@@ -1678,7 +1678,7 @@ function setupDataBackupWorkflow() {
     elements.exportLibraryJsonBtn.addEventListener('click', async () => {
       try {
         elements.exportLibraryJsonBtn.disabled = true;
-        const response = await sendRuntimeMessage({ type: 'EXPORT_DATA_V2' });
+        const response = await sendRuntimeMessage({ type: 'EXPORT_DATA' });
         elements.exportLibraryJsonBtn.disabled = false;
         if (!response || response.status !== 'ok') {
           showImportExportMessage(t('msg_export_failed', [response && response.error ? response.error : '']), true);
@@ -1717,7 +1717,7 @@ function setupDataBackupWorkflow() {
       reader.onload = async (event) => {
         try {
           const parsed = JSON.parse(event.target.result);
-          const res = await sendRuntimeMessage({ type: 'IMPORT_DATA_V2', payload: parsed });
+          const res = await sendRuntimeMessage({ type: 'IMPORT_DATA', payload: parsed });
           if (!res || res.status !== 'ok') {
             showImportExportMessage(describeImportFailure(res), true);
             return;

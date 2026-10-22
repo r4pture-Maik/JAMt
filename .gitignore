@@ -35,12 +35,12 @@ scratch/
 # Release artifacts (npm run build)
 dist/
 
-# Local documentation & wiki
-# Listed explicitly rather than as a blanket `.*`, which would also swallow
-# .github/ and make it impossible to add a CI workflow.
+# Local agents info
 .agents/
 .review/
 .wiki/
-
-# Harness
-.claude
+.claude/
+CLAUDE.MD
+AGENTS.MD
+.scratch/
+docs/agents/

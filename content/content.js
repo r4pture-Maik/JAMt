@@ -1081,7 +1081,7 @@
           <div class="ytmc-status-spinner" id="ytmc-scan-spinner"></div>
           <span id="ytmc-scan-note">Ready to sync your listening history.</span>
         </div>
-        <div style="font-size: 11px; color: #888; display: flex; align-items: center; gap: 6px;">
+        <div style="font-size: 11px; color: #9C97B0; display: flex; align-items: center; gap: 6px;">
           <input type="checkbox" id="ytmc-force-rescan-cb">
           <label for="ytmc-force-rescan-cb" style="cursor: pointer;">Re-scan full history from the beginning</label>
         </div>

@@ -3,7 +3,22 @@
  * Accumulates continuous playback time across global metrics, songs, artists, and albums.
  */
 
-import { makeSongKey, makeArtistKey, makeAlbumKey, splitArtists, withStorageLock, PENDING_DURATIONS_KEY } from './storage.js';
+import {
+  makeSongKey,
+  makeArtistKey,
+  makeAlbumKey,
+  splitArtists,
+  withStorageLock,
+  currentMonthId,
+  PENDING_DURATIONS_KEY
+} from './storage.js';
+
+import {
+  artistKeysFor,
+  buildMonthUpdates,
+  readMonthState,
+  recordDurationInBucket
+} from './monthly.js';
 
 /**
  * Records a listening duration tick (delta) and updates storage.

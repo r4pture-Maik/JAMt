@@ -3,8 +3,8 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(92, 18, 175, 0.25);
+  border: 1px solid rgba(180, 140, 240, 0.25);
   border-radius: 16px;
   padding: 3px 10px;
   margin-right: 12px;
@@ -18,8 +18,8 @@
 }
 
 #ytmusic-counter-badge:hover {
-  background: rgba(255, 0, 51, 0.2);
-  border-color: rgba(255, 0, 51, 0.4);
+  background: rgba(92, 18, 175, 0.45);
+  border-color: rgba(212, 168, 67, 0.55);
   transform: translateY(-1px);
 }
 
@@ -29,7 +29,7 @@
 
 #ytmusic-counter-badge .ytmc-count {
   font-weight: 700;
-  color: #ff334b;
+  color: #E8C466;
   display: inline-block;
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -40,7 +40,7 @@
 
 #ytmusic-counter-badge .ytmc-label {
   font-size: 11px;
-  color: #aaa;
+  color: #C4BFD6;
 }
 
 @keyframes ytmc-pulse-anim {
@@ -50,7 +50,7 @@
   50% {
     transform: scale(1.4);
     color: #ffffff;
-    text-shadow: 0 0 8px #ff0033;
+    text-shadow: 0 0 8px #D4A843;
   }
   100% {
     transform: scale(1);
@@ -65,12 +65,12 @@
   bottom: 90px;
   right: 24px;
   width: 320px;
-  background: rgba(18, 18, 18, 0.94);
+  background: rgba(21, 19, 26, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 0, 51, 0.35);
+  border: 1px solid rgba(139, 126, 200, 0.35);
   border-radius: 14px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75), 0 0 24px rgba(255, 0, 51, 0.2);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75), 0 0 24px rgba(92, 18, 175, 0.35);
   z-index: 999999;
   color: #ffffff;
   font-family: 'Roboto', 'Segoe UI', system-ui, sans-serif;
@@ -127,12 +127,12 @@
 .ytmc-scanner-logo {
   width: 22px;
   height: 22px;
-  background: linear-gradient(135deg, #ff0033, #8a001b);
+  background: linear-gradient(135deg, #5C12AF, #463E68);
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(255, 0, 51, 0.4);
+  box-shadow: 0 2px 8px rgba(92, 18, 175, 0.5);
 }
 
 .ytmc-scanner-logo svg {
@@ -157,7 +157,7 @@
 .ytmc-btn-mini {
   background: none;
   border: none;
-  color: #888;
+  color: #9C97B0;
   cursor: pointer;
   padding: 4px 6px;
   border-radius: 4px;
@@ -197,7 +197,7 @@
 .ytmc-metric-label {
   font-size: 11px;
   text-transform: uppercase;
-  color: #999;
+  color: #9C97B0;
   font-weight: 600;
   letter-spacing: 0.5px;
 }
@@ -205,7 +205,7 @@
 .ytmc-metric-val {
   font-size: 24px;
   font-weight: 700;
-  color: #ff334b;
+  color: #E8C466;
   margin-top: 2px;
 }
 
@@ -224,8 +224,8 @@
 .ytmc-status-spinner {
   width: 10px;
   height: 10px;
-  border: 2px solid rgba(255, 0, 51, 0.2);
-  border-top-color: #ff0033;
+  border: 2px solid rgba(180, 140, 240, 0.2);
+  border-top-color: #B48CF0;
   border-radius: 50%;
   animation: ytmc-spin 0.8s linear infinite;
   display: none;
@@ -245,7 +245,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: #ff0033;
+  background: #5C12AF;
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -253,12 +253,12 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(255, 0, 51, 0.3);
+  box-shadow: 0 2px 10px rgba(92, 18, 175, 0.5);
   transition: all 0.2s;
 }
 
 .ytmc-btn-scan-start:hover {
-  background: #ff1a47;
+  background: #6D24C4;
   transform: translateY(-1px);
 }
 

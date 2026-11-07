@@ -222,7 +222,8 @@ describe('History Ingestion Module - Core Statistics Updates', () => {
     }, mockBrowser);
 
     stats = await getStats(mockBrowser);
-    assert.equal(stats.completedAlbumsCount, 2, 'album is marked finished 2 times after 2 complete listens');
+    assert.equal(stats.completedAlbumsCount, 1, 'a second complete listen does not count the same album twice');
+    assert.equal(stats.allAlbums[0].completePlays, 2, 'the album still records both complete listens');
     assert.equal(stats.uniqueSongsCount, 3, 'different songs count remains 3');
     assert.equal(stats.totalPlays, 6);
     assert.equal(stats.totalListeningSeconds, 1660);

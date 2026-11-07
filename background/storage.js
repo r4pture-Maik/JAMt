@@ -535,10 +535,7 @@ export async function getStats(extBrowser) {
   const topAlbums = sortedAlbums.slice(0, 3);
 
   const singlesCount = Object.values(songs).filter(s => s.isSingle || !s.album).length;
-  const completedAlbumsCount = Object.values(albums).reduce(
-    (sum, a) => sum + (a.completePlays || 0),
-    0
-  );
+  const completedAlbumsCount = Object.values(albums).filter(a => (a.completePlays || 0) > 0).length;
 
   // `allTracks` is intentionally stripped from the broadcast payload. It is by
   // far the heaviest field (one entry per track of every album) and is only

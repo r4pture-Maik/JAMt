@@ -66,6 +66,9 @@ const elements = {
   trackedAlbumsStat: document.getElementById('trackedAlbumsStat'),
   singlesStat: document.getElementById('singlesStat'),
   completedAlbumsStat: document.getElementById('completedAlbumsStat'),
+  topArtistsTile: document.getElementById('topArtistsTile'),
+  completedAlbumsProgressText: document.getElementById('completedAlbumsProgressText'),
+  completedAlbumsProgressBar: document.getElementById('completedAlbumsProgressBar'),
   refreshAlbumsBreakdownBtn: document.getElementById('refreshAlbumsBreakdownBtn'),
   albumsBreakdownList: document.getElementById('albumsBreakdownList'),
   toggleAllAlbumsBtn: document.getElementById('toggleAllAlbumsBtn'),
@@ -280,10 +283,7 @@ async function fetchStatsDirectlyFromStorage() {
       }
     }
     const singlesCount = Object.values(songs).filter(s => s.isSingle || !s.album).length;
-    const completedAlbumsCount = Object.values(cleanedAlbums).reduce(
-      (sum, a) => sum + (a.completePlays || 0),
-      0
-    );
+    const completedAlbumsCount = Object.values(cleanedAlbums).filter(a => (a.completePlays || 0) > 0).length;
 
     const sortedAlbums = Object.values(cleanedAlbums)
       .sort((a, b) => ((b.completePlays || 0) * 100 + (b.playCount || 0)) - ((a.completePlays || 0) * 100 + (a.playCount || 0)));
@@ -295,6 +295,7 @@ async function fetchStatsDirectlyFromStorage() {
       uniqueAlbumsCount: Object.keys(cleanedAlbums).length,
       singlesCount,
       completedAlbumsCount,
+      topArtists: Object.values(artists).sort((a, b) => b.playCount - a.playCount).slice(0, 3),
       topAlbums: sortedAlbums.slice(0, 3),
       allAlbums: sortedAlbums,
       currentTrack: data.currentTrack || null
@@ -346,6 +347,32 @@ function renderStats(stats) {
   }
   if (elements.completedAlbumsStat) {
     elements.completedAlbumsStat.textContent = formatNumber(stats.completedAlbumsCount || 0);
+  }
+  if (elements.topArtistsTile) {
+    elements.topArtistsTile.replaceChildren(...(stats.topArtists || []).slice(0, 3).map((artist, idx) => {
+      const li = document.createElement('li');
+      const rank = document.createElement('span');
+      rank.className = 'rank';
+      rank.textContent = String(idx + 1);
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = artist.artist || '';
+      name.title = artist.artist || '';
+      const plays = document.createElement('span');
+      plays.className = 'plays';
+      plays.textContent = formatNumber(artist.playCount || 0);
+      li.append(rank, name, plays);
+      return li;
+    }));
+  }
+  if (elements.completedAlbumsProgressText && elements.completedAlbumsProgressBar) {
+    const total = stats.uniqueAlbumsCount || 0;
+    const done = stats.completedAlbumsCount || 0;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    elements.completedAlbumsProgressText.textContent = total > 0
+      ? `${formatNumber(done)} / ${formatNumber(total)} \u00b7 ${pct}%`
+      : '';
+    elements.completedAlbumsProgressBar.style.width = `${pct}%`;
   }
 
   // Render Albums Breakdown List
@@ -1641,7 +1668,7 @@ window.addEventListener('beforeunload', () => {
 function showImportExportMessage(msg, isError = false) {
   if (!elements.importExportStatusMessage) return;
   elements.importExportStatusMessage.textContent = msg;
-  elements.importExportStatusMessage.style.color = isError ? 'var(--accent-red)' : 'var(--accent-green, #10b981)';
+  elements.importExportStatusMessage.style.color = isError ? 'var(--accent-red)' : 'var(--success-emerald, #5FBF9A)';
   elements.importExportStatusMessage.style.display = 'inline';
   setTimeout(() => {
     if (elements.importExportStatusMessage) {

@@ -127,7 +127,7 @@ describe('background monthly tracking', () => {
     assert.equal(bucket.songs['live song:::band & guest'].playCount, 2);
     assert.equal(bucket.artists.band.playCount, 2);
     assert.equal(bucket.artists.guest.playCount, 2);
-    assert.equal(bucket.albums['live album:::band & guest'].playCount, 2);
+    assert.equal(bucket.albums['live album:::band'].playCount, 2);
     // Live plays carry no seconds of their own: ticks add them.
     assert.equal(bucket.totalListeningSeconds, 0);
     assert.equal(store.songs['live song:::band & guest'].playCount, 2);
